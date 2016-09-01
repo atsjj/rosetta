@@ -1,4 +1,4 @@
-FROM java:8-alpine
+FROM bach/rosetta
 MAINTAINER Brian Murphy-Dye <bmurphydye@summit.com>
 
 ADD *.jcoDestination /rosetta/
