@@ -1,5 +1,3 @@
-(println "loading summit.utils.log")
-
 (ns summit.utils.log
   (:require [clojure.pprint :refer [pprint]]
            [clojure.core.async
@@ -38,12 +36,6 @@
   (binding [clojure.pprint/*print-miser-width* 120
             clojure.pprint/*print-right-margin* 120]
     (doseq [arg args] (pprint arg))))
-
-;; (defn- log [args]
-;;   (try
-;;     (apply println args)
-;;     (catch Exception e)
-;;     ))
 
 (defn- log-loop [chan-atom post-log-fn]
   (go-loop []
@@ -103,6 +95,4 @@
 ;;   (log-soon n 4 (rand)))
 ;; (dotimes [n 50]
 ;;   (log-slowly n 4 (rand)))
-
-(println "done loading summit.utils.log")
 
