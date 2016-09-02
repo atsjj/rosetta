@@ -1,3 +1,5 @@
+(println "loading summit.sap.core")
+
 (ns summit.sap.core
   (:require [clojure.string :as str]
 
@@ -13,6 +15,8 @@
              JCoFunction JCoFunctionTemplate JCoStructure
              JCoTable
              ]))
+
+(println "in summit.sap.core, after ns declaration")
 
 (def internet-account-number "0001027925")
 (def internet-service-center-code "ZZZZ")
@@ -385,3 +389,4 @@ t
 
 )
 
+(println "done loading summit.sap.core")
