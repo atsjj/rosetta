@@ -1,8 +1,0 @@
-FROM bach/rosetta
-MAINTAINER Brian Murphy-Dye <bmurphydye@summit.com>
-
-ADD *.jcoDestination /rosetta/
-
-EXPOSE 3000
-
-CMD ["java", "-jar", "/rosetta/app.jar"]
