@@ -14,7 +14,7 @@ profiles.clj
 .#*
 /jars
 *.log
-*.edn
+xxxx*.edn
 *.jcoDestination
 oracle-meta
 /docker/m2

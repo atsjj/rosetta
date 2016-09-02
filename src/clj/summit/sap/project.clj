@@ -1,3 +1,5 @@
+(println "loading summit.sap.project")
+
 (ns summit.sap.project
   (:require [summit.sap.core :refer :all]
             [clojure.string :as str]
@@ -336,3 +338,5 @@
 ;; (project 1)
 ;; (project 2)
 ;; (projects 1002224)
+
+(println "done loading summit.sap.project")
