@@ -218,7 +218,7 @@
     (merge
      order
      {:line-item-ids (-> line-item-ids set sort)
-      :additiona-attrs (:attrs (first orders))})))
+      :attributes (:attrs (first orders))})))
 
 (defn- join-like-orders [orders]
   (let [unique-orders (set (map #(dissoc % :line-item-id :attrs) orders))]
@@ -264,7 +264,7 @@
      {:delivery-ids delivery-ids
       :delivered-qty delivered-qty
       :picked-qty picked-qty
-      :additional-attrs (:attrs (first items))}
+      :attributes (:attrs (first items))}
      )))
 
 (defn- join-like-items [items]
@@ -296,7 +296,7 @@
   (->> maps
        (map (fn [m] {:type "delivery"
                      :id (-> m :delivery :delivery)
-                     :additional-attrdedevvs (:delivery-attr-vals m)}))
+                     :attributes (:delivery-attr-vals m)}))
        ;; (filter #(not-empty %))
        set
        ;; (map delivery->json-api)
