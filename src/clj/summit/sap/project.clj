@@ -11,6 +11,10 @@
 ;;     All projects for an account
 
 (def ^:private et-project-fields [:client :id :sold-to :name :title :start-date :end-date :service-center-code :status :last-modifier :modified-on])
+(def ^:private cached-project-names (atom {}))
+(defn- project-name [id]
+  (@cached-project-names id))
+
 
 (defn- transform-triplets [m attr-defs]
   (let [attr-defs (partition 3 attr-defs)]
@@ -42,12 +46,14 @@
 (defn- project-link [id]
   {:self (str "/api/project/" id)})
 
-(defn- project->json-api [proj]
+(defn- project->json-api [account-id proj]
   (let [id (:id proj)]
     {:type "project"
      :id id
      :links (project-link id)
-     :attributes (dissoc proj :id :sold-to :ship-to-ids)
+     ;; :attributes (dissoc proj :id :sold-to :ship-to-ids)
+     :attributes {:id id :name (:name proj)}
+     :relationships {:data {:account {:type "account" :id account-id}}}
      ;; :relationships
      ;; {:account {:data {:type "sold-to" :id (:sold-to proj)}}}
      }))
@@ -59,18 +65,24 @@
      (push f {:i_kunag (as-document-num account-num)})
      (execute f)
      (let [projs (map transform-project-summary (pull f :et-projects))
-           project-relationships (map (fn [m] {:type "project"
-                                               :id (:id m)
-                                               :links (project-link (:id m))
-                                               }) projs)
+           ;; project-relationships (map (fn [m] {:type "project"
+           ;;                                     :id (:id m)
+           ;;                                     :links (project-link (:id m))
+           ;;                                     :relationships {:data {:type "account" :id (:id m)}}
+           ;;                                     }) projs)
            ]
+       (doseq [proj projs]
+         (swap! cached-project-names assoc (:id proj) (:name proj)))
        {:data
-        {:type "account"
-         :id account-num
-         :relationships {:projects project-relationships}
-         }
-        :included (map project->json-api projs)
+        (map (partial project->json-api account-num) projs)
         }
+       ;; {:data
+       ;;  {:type "account"
+       ;;   :id account-num
+       ;;   :relationships {:projects project-relationships}
+       ;;   }
+       ;;  :included (map project->json-api projs)
+       ;;  }
        ))))
 
 
@@ -307,13 +319,13 @@
         :attributes {:order-attribute-names (:order-attr-defs maps)
                      :line-item-attribute-names (:line-item-attr-defs maps)
                      :delivery-attribute-names (:delivery-attr-defs maps)}
-        :relationships {:orders {:data json-orders}}
+        :relationships {:project-orders {:data json-orders}}
         }
        :included
        {
-        :orders orders
-        :line-items items
-        :deliveries deliveries
+        :project-orders orders
+        :project-line-items items
+        :project-deliveries deliveries
         }
        :raw maps
        })
@@ -330,10 +342,14 @@
      (push project-fn {:i-proj-id (as-document-num project-id)})
      (execute project-fn)
      (let [result (transform-project project-fn)]
-       (if result
-         (assoc-in
+       (when result
+         (->
           result
-          [:data :id] project-id)))
+          (assoc-in
+           [:data :id] project-id)
+          (assoc-in
+           [:data :name] (project-name project-id))
+          )))
      )))
 ;; (project 1)
 ;; (project 2)
