@@ -302,6 +302,15 @@
        ;; (map delivery->json-api)
        ))
 
+(defn- attrize [attribute-maps]
+  ;; attribute-maps)
+  (map (fn [[key attr]]
+         {:key (:id attr)
+          :value (:title attr)
+          :sequence (->int (last (str/split (:id attr) #"-")))}
+         )
+       attribute-maps))
+
 (defn transform-project [project-fn]
   (let [maps (retrieve-maps project-fn)
         ]
@@ -316,9 +325,9 @@
       {:data
        {:type :project
         :id nil
-        :attributes {:order-attribute-names (:order-attr-defs maps)
-                     :line-item-attribute-names (:line-item-attr-defs maps)
-                     :delivery-attribute-names (:delivery-attr-defs maps)}
+        :attributes {:order-attributes (attrize (:order-attr-defs maps))
+                     :line-item-attributes (attrize (:line-item-attr-defs maps))
+                     :delivery-attributes (attrize (:delivery-attr-defs maps))}
         :relationships {:project-orders {:data json-orders}}
         }
        :included
