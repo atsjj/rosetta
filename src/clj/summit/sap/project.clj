@@ -312,6 +312,16 @@
          )
        attribute-maps))
 
+(defn- extract-drawings [status-lines]
+  (utils/collect-by #(-> % :order :drawing-num) #(-> % :order :order-num) status-lines))
+  ;; (disj (set (map #(-> % :order :drawing-num) status-lines)) ""))
+
+(defn- extract-circuits [status-lines]
+  (dissoc
+   (utils/collect-by #(-> % :line-item :circuit-id) #(-> % :order :order-num) status-lines)
+   ""))
+  ;; (disj (set (map #(-> % :line-item :circuit-id) status-lines)) ""))
+
 (defn transform-project [project-fn]
   (let [maps (retrieve-maps project-fn)
         ]
@@ -321,6 +331,8 @@
           items (extract-line-items status-lines)
           orders (extract-orders status-lines)
           deliveries (extract-deliveries status-lines)
+          drawings (extract-drawings status-lines)
+          circuits (extract-circuits status-lines)
           json-orders (map (fn [id] {:type :project-order :id id}) order-ids)
           ]
       {:data
@@ -333,6 +345,8 @@
         }
        :included
        {
+        :drawings drawings
+        :circuits circuits
         :project-orders orders
         :project-line-items items
         :project-deliveries deliveries

@@ -152,20 +152,19 @@
 
 (defn collect-by [key-fn val-fn maps]
   (let [result (atom {})]
-    (println "----------")
     (doseq [m maps]
-      (let [key (key-fn m)
-            _ (println "key" key)
-            value (val-fn m)
-            _ (println "val" value)
+      (let [key      (key-fn m)
+            value    (val-fn m)
             orig-val (@result key)
-            _ (println "orig" orig-val)
-            new-val (if (nil? orig-val) [value] (conj orig-val value))
-            _ (println "new" new-val)
+            new-val  (if (nil? orig-val) (set [value]) (conj orig-val value))
             ]
         (swap! result assoc key new-val)))
     @result))
 (examples
- (def x [{:a 3 :b 7} {:a 4 :b 5} {:a 3 :b 9}])
- ;; want {3 [7 9] 4 [5]}
- (collect-by :a :b x))
+ (collect-by :a :b [{:a 3 :b 7} {:a 4 :b 5} {:a 3 :b 9}])
+ (let [x [{:a 3 :b 7} {:a 4 :b 5} {:a 3 :b 9}]]
+   (assert (=
+            (collect-by :a :b x)
+            ;; {3 [7 9] 4 [5]})))
+            {3 #{7 9} 4 #{5}})))
+ )
