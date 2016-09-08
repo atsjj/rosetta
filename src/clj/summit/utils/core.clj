@@ -149,3 +149,23 @@
   ;; (clean-all (req-sans-unprintable req)))
   (req-sans-unprintable req))
 
+
+(defn collect-by [key-fn val-fn maps]
+  (let [result (atom {})]
+    (println "----------")
+    (doseq [m maps]
+      (let [key (key-fn m)
+            _ (println "key" key)
+            value (val-fn m)
+            _ (println "val" value)
+            orig-val (@result key)
+            _ (println "orig" orig-val)
+            new-val (if (nil? orig-val) [value] (conj orig-val value))
+            _ (println "new" new-val)
+            ]
+        (swap! result assoc key new-val)))
+    @result))
+(examples
+ (def x [{:a 3 :b 7} {:a 4 :b 5} {:a 3 :b 9}])
+ ;; want {3 [7 9] 4 [5]}
+ (collect-by :a :b x))
