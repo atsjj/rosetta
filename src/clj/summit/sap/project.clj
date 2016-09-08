@@ -226,11 +226,12 @@
     ;; (set orders)))
 
 (defn- order->json-api [order]
-  {:type :order
+  {:type :project-order
    :id (:id order)
    :attributes (dissoc order :id :project-id :line-item-ids)
-   :relationships {:project {:data {:type :project :id (:project-id order)}}
-                   :line-items {:data (map (fn [x] {:type :line-item :id x}) (:line-item-ids order))}
+   :relationships {:order {:data {:type :order :id (:id order)}}
+                   :project {:data {:type :project :id (:project-id order)}}
+                   :project-line-items {:data (map (fn [x] {:type :project-line-item :id x}) (:line-item-ids order))}
                    }
    })
 
@@ -272,11 +273,11 @@
     (map #(merge-item (collect-same items (:id %)) %) unique-items)))
 
 (defn- line-item->json-api [item]
-  {:type :line-item
+  {:type :project-line-item
    :id (:id item)
    :attributes (dissoc item :order-id :delivery-ids)
-   :relationships {:order {:data {:type :order :id (:order-id item)}}
-                   :deliveries {:data (map (fn [x] {:type :delivery :id x}) (:delivery-ids item))}
+   :relationships {:project-order {:data {:type :project-order :id (:order-id item)}}
+                   :project-deliveries {:data (map (fn [x] {:type :project-delivery :id x}) (:delivery-ids item))}
                    }
    })
 
@@ -294,7 +295,7 @@
 
 (defn- extract-deliveries [maps]
   (->> maps
-       (map (fn [m] {:type "delivery"
+       (map (fn [m] {:type "project-delivery"
                      :id (-> m :delivery :delivery)
                      :attributes (:delivery-attr-vals m)}))
        ;; (filter #(not-empty %))
@@ -320,14 +321,14 @@
           items (extract-line-items status-lines)
           orders (extract-orders status-lines)
           deliveries (extract-deliveries status-lines)
-          json-orders (map (fn [id] {:type :order :id id}) order-ids)
+          json-orders (map (fn [id] {:type :project-order :id id}) order-ids)
           ]
       {:data
        {:type :project
         :id nil
-        :attributes {:order-attributes (attrize (:order-attr-defs maps))
-                     :line-item-attributes (attrize (:line-item-attr-defs maps))
-                     :delivery-attributes (attrize (:delivery-attr-defs maps))}
+        :attributes {:project-order-attributes (attrize (:order-attr-defs maps))
+                     :project-line-item-attributes (attrize (:line-item-attr-defs maps))
+                     :project-delivery-attributes (attrize (:delivery-attr-defs maps))}
         :relationships {:project-orders {:data json-orders}}
         }
        :included
