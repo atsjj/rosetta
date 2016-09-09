@@ -277,6 +277,7 @@
    :id (:id item)
    :attributes (dissoc item :order-id :delivery-ids)
    :relationships {:project-order {:data {:type :project-order :id (:order-id item)}}
+                   :line-item {:data {:type :line-item :id (:id item)}}
                    :project-deliveries {:data (map (fn [x] {:type :project-delivery :id x}) (:delivery-ids item))}
                    }
    })
@@ -295,7 +296,7 @@
 
 (defn- extract-deliveries [maps]
   (->> maps
-       (map (fn [m] {:type "project-delivery"
+       (map (fn [m] {:type :project-delivery
                      :id (-> m :delivery :delivery)
                      :attributes (:delivery-attr-vals m)}))
        ;; (filter #(not-empty %))
@@ -312,6 +313,30 @@
          )
        attribute-maps))
 
+(defn- drawings->json-api [project-id drawings]
+  (for [[id order-nums] drawings]
+    {:type :drawing
+     :id id
+     :relationships
+     {:project {:data {:type :project :id project-id}}
+      :project-orders
+      (map (fn [x] {:type :project-order :id x})
+           order-nums)
+      }
+     }))
+
+(defn- circuits->json-api [project-id circuits]
+  (for [[id order-nums] circuits]
+    {:type :circuit
+     :id id
+     :relationships
+     {:project {:data {:type :project :id project-id}}
+      :project-orders
+      (map (fn [x] {:type :project-order :id x})
+           order-nums)
+      }
+     }))
+
 (defn- extract-drawings [status-lines]
   (utils/collect-by #(-> % :order :drawing-num) #(-> % :order :order-num) status-lines))
   ;; (disj (set (map #(-> % :order :drawing-num) status-lines)) ""))
@@ -322,7 +347,7 @@
    ""))
   ;; (disj (set (map #(-> % :line-item :circuit-id) status-lines)) ""))
 
-(defn transform-project [project-fn]
+(defn transform-project [project-id project-fn]
   (let [maps (retrieve-maps project-fn)
         ]
     (let [
@@ -337,19 +362,24 @@
           ]
       {:data
        {:type :project
-        :id nil
+        :id project-id
         :attributes {:project-order-attributes (attrize (:order-attr-defs maps))
                      :project-line-item-attributes (attrize (:line-item-attr-defs maps))
                      :project-delivery-attributes (attrize (:delivery-attr-defs maps))}
-        :relationships {:project-orders {:data json-orders}}
+        :relationships {:project-orders {:data json-orders}
+                        :drawings (for [[id _] drawings]
+                                    {:type :drawing :id id})
+                        :circuits (for [[id _] circuits]
+                                    {:type :circuit :id id})
+                        }
         }
        :included
        {
-        :drawings drawings
-        :circuits circuits
         :project-orders orders
         :project-line-items items
         :project-deliveries deliveries
+        :drawings (drawings->json-api project-id drawings)
+        :circuits (circuits->json-api project-id circuits)
         }
        :raw maps
        })
@@ -365,7 +395,7 @@
        ;; (ppn (function-interface project-fn))
      (push project-fn {:i-proj-id (as-document-num project-id)})
      (execute project-fn)
-     (let [result (transform-project project-fn)]
+     (let [result (transform-project project-id project-fn)]
        (when result
          (->
           result
