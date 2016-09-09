@@ -22,8 +22,9 @@
 (defn transform-comment [comment]
   (let [order-id (->int (:order comment))]
     (let [comment-id (->int (:item comment))]
-      {:id    (str order-id "-" comment-id)
-       :value (:tdline comment)})))
+      {:id       (str order-id "-" comment-id)
+       :order-id order-id
+       :value    (:tdline comment)})))
 
 (defn transform-line-item [line-item]
   (let [order-id (->int (:order line-item))]
@@ -93,12 +94,17 @@
              (:ship-address-id order)
              (:sold-address-id order)
              (:pay-address-id order))]
-    (filter (fn [x] (some #(= (:id x) %) ids) addresses))))
+    (filter (fn [x] (some #(= (:id x) %) ids)) addresses)))
+
+(defn- collect-items-for-order [order-id items]
+  (filter #(= order-id (:order-id %)) items))
 
 (defn transform-order [maps order]
   (let [id (:id order)]
     {:order order
-     :addresses (collect-addresses-for-order order (:addresses maps))}))
+     :addresses (collect-addresses-for-order order (:addresses maps))
+     :comments (collect-items-for-order id (:comments maps))
+     :line-items (collect-items-for-order id (:line-items maps))}))
 
 (defn transform-orders [order-fn]
   (let [maps (retrieve-maps order-fn)]
