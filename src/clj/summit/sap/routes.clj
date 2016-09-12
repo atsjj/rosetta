@@ -33,8 +33,7 @@
   )
 
 (defn get-order [customer server order-id]
-  (order/order server order-id)
-  )
+  (order/order->json-api (order/order server order-id)))
 
 (defn debugged-body [m request debug-map]
   (let [body (or m {:errors ["not found"]})]

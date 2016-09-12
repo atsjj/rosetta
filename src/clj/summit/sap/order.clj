@@ -119,10 +119,113 @@
         :if-addresses "X"
         :if-texts "X"})
       (execute order-fn)
-      (let [result (transform-orders order-fn)] result))))
+      (let [result (first (transform-orders order-fn))] result))))
 
-(def f (order "3970176"))
+(defn line-item->json-api [line-item]
+  {:type       "line-item"
+   :id         (:id line-item)
+   :attributes (dissoc line-item
+                       :id
+                       :account-id
+                       :job-account-id
+                       :order-id
+                       :product-id)
+   :relationships
+   {:account
+    {:data
+     {:type "account"
+      :id   (:account-id line-item)}}
+    :job-account
+    {:data
+     {:type "job-account"
+      :id   (:job-account-id line-item)}}
+    :order
+    {:data
+     {:type "order"
+      :id   (:order-id line-item)}}
+    :product
+    {:data
+     {:type "product"
+      :id   (:product-id line-item)}}}})
 
-(ppn f)
+(defn line-items->json-api [line-items]
+  (map line-item->json-api line-items))
+
+(defn comment->json-api [comment]
+  {:type       "comment"
+   :id         (:id comment)
+   :attributes (dissoc comment
+                       :id)})
+
+(defn comments->json-api [comments]
+  (map comment->json-api comments))
+
+
+(defn address->json-api [address]
+  {:type       "address"
+   :id         (:id address)
+   :attributes (dissoc address
+                       :id)})
+
+(defn addresses->json-api [addresses]
+  (map address->json-api addresses))
+
+(defn json-api->stub [stub]
+  (dissoc stub :attributes :relationships))
+
+(defn json-api->stubs [stubs]
+  (map json-api->stub stubs))
+
+(defn order->json-api [result]
+  (let [addresses  (:addresses result)
+        comments   (:comments result)
+        line-items (:line-items result)
+        order      (:order result)]
+    {:data
+     {:type       "order"
+      :id         (:id order)
+      :attributes (dissoc order
+                          :id
+                          :account-id
+                          :bill-address-id
+                          :job-account-id
+                          :ship-address-id
+                          :sold-address-id
+                          :pay-address-id)
+      :relationships
+      {:account
+       {:data
+        {:type "account"
+         :id   (:account-id order)}}
+       :bill-address
+       {:data
+        {:type "address"
+         :id   (:bill-address-id order)}}
+       :job-account
+       {:data
+        {:type "job-account"
+         :id   (:job-account-id order)}}
+       :ship-address
+       {:data
+        {:type "address"
+         :id   (:ship-address-id order)}}
+       :sold-address
+       {:data
+        {:type "address"
+         :id   (:sold-address-id order)}}
+       :pay-address
+       {:data
+        {:type "address"
+         :id   (:pay-address-id order)}}
+       :line-items
+       {:data (json-api->stubs (line-items->json-api line-items))}
+       :comments
+       {:data (json-api->stubs (comments->json-api comments))}}}
+     :included (flatten [(addresses->json-api addresses)
+                         (comments->json-api comments)
+                         (line-items->json-api line-items)])}))
+
+;; (def f (order "3970176"))
+;; (ppn (order->json-api f))
 
 (println "done loading summit.sap.order")
