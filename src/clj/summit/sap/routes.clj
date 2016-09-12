@@ -3,6 +3,7 @@
 
             [summit.utils.core :refer [->int]]
             [summit.sap.project :as project]
+            [summit.sap.order :as order]
 
             [summit.utils.core :as utils]))
 
@@ -30,6 +31,9 @@
 (defn get-projects [customer server account-num]
   (project/projects server account-num)
   )
+
+(defn get-order [customer server order-id]
+  (order/order->json-api (order/order server order-id)))
 
 (defn debugged-body [m request debug-map]
   (let [body (or m {:errors ["not found"]})]
@@ -76,6 +80,20 @@
         (json-api-response projs
                            req
                            {:server server :customer customer :account-num account-num}
+                           )
+        ))
+
+    (GET "/orders/:id" req
+      (let [customer nil
+            server (keyword (get-keyword-param req :server default-server))
+            id (->int (get-param req :id nil))
+            ;; id (->int (:id (:params req)))
+            ;; id 1
+            proj (get-order customer server id)
+            ]
+        (json-api-response proj
+                           req
+                           {:server server :customer customer :order-id id}
                            )
         ))
     ))
