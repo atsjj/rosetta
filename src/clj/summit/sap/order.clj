@@ -60,19 +60,15 @@
    :total            (:total-cost order)})
 
 (defn transform-addresses [addresses]
-  (ppn (str "transform-addresses"))
   (map transform-address addresses))
 
 (defn transform-comments [comments]
-  (ppn (str "transform-comments"))
   (map transform-comment comments))
 
 (defn transform-line-items [line-items]
-  (ppn (str "transform-order-detail"))
   (map transform-line-item line-items))
 
 (defn transform-orders-summary [orders]
-  (ppn (str "transform-orders-summary"))
   (map transform-order-summary orders))
 
 (defn retrieve-maps [order-fn]
@@ -114,33 +110,19 @@
 (defn order
   ([order-id] (order :qas order-id))
   ([system order-id]
-    (utils/ppn (str "getting order " order-id " on " system))
+    (ppn (str "getting order " order-id " on " system))
     (let [order-fn (find-function system :Z_O_ORDERS_QUERY) id-seq-num (atom 0)]
       (push order-fn {
-        ; :i-customer "0001002225"
         :i-order (as-document-num order-id)
         :if-orders "X"
         :if-details "X"
         :if-addresses "X"
         :if-texts "X"})
       (execute order-fn)
-      ;; (transform-order order-fn))))
-      order-fn)))
-      ; (execute order-fn)
-      ; (let [result (transform-order order-fn)]
-      ;   (if result (assoc-in result [:data :id] order-id))))))
-; (def x (order "3970176"))
-; (order "3970176")
+      (let [result (transform-orders order-fn)] result))))
+
 (def f (order "3970176"))
 
-;; (pull-map f :et-orders-detail)
-;; (ppn (retrieve-maps f))
-(ppn (transform-orders f))
-;; (ppn (:line-items (retrieve-maps f))) 
-;; (retrieve-maps f)
-;; (ppn (pull-map (utils/ppl "function" f) :et-orders-detail))
-;; (keys f)
-(ppn (function-interface f))
-;; (ppn (keys (function-interface f)))
+(ppn f)
 
 (println "done loading summit.sap.order")
