@@ -34,10 +34,9 @@
           shipping-name (shipping-types (:shipping-type line-item))]
       {:id                 (str order-id "-" line-item-id)
        :account-id         (->int (:customer line-item))
-       ;; :job-account-id     (:job-account line-item)
        :job-account-id     (->long (:job-account line-item))
        :order-id           order-id
-       :product-id         (->int (:material line-item))
+       :product-id         (:material line-item)
        :delivered-quantity (:delivered-qty line-item)
        :delivery-status    (deliver-statuses (:cust-cmpl-status line-item))
        :number-per-unit    (:num-per-unit line-item)
