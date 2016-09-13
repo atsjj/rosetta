@@ -3,7 +3,8 @@
 (ns summit.sap.order
   (:require [summit.sap.core :refer :all]
             [clojure.string :as str]
-            [summit.utils.core :as utils :refer [->int as-document-num examples ppn]]
+            [summit.utils.core :as utils :refer [->int as-document-num ppn]]
+            [summit.sap.lookup-tables :as lookup-tables :refer [deliver-statuses shipping-types]]
             ))
 
 (defn transform-address [address]
@@ -22,28 +23,33 @@
 (defn transform-comment [comment]
   (let [order-id (->int (:order comment))]
     (let [comment-id (->int (:item comment))]
-      {:id       (str order-id "-" comment-id)
-       :order-id order-id
-       :value    (:tdline comment)})))
+      {:id           (str order-id "-" comment-id)
+       :line-item-id (str order-id "-" (->int (:item comment)))
+       :order-id     order-id
+       :value        (:tdline comment)})))
 
 (defn transform-line-item [line-item]
   (let [order-id (->int (:order line-item))]
-    (let [line-item-id (->int (:item line-item))]
-      {:id              (str order-id "-" line-item-id)
-       :account-id      (->int (:customer line-item))
-       :job-account-id  (->int (:job-account line-item))
-       :order-id        order-id
-       :product-id      (->int (:material line-item))
-       :delivery-status (:cust-cmpl-status line-item)
-       :extended-price  0
-       :quantity        0
-       :price           0
-       :shipping-type   (:shipping-type line-item)})))
+    (let [line-item-id  (->int (:item line-item))
+          shipping-name (shipping-types (:shipping-type line-item))]
+      {:id                 (str order-id "-" line-item-id)
+       :account-id         (->int (:customer line-item))
+       :job-account-id     (:job-account line-item)
+       :order-id           order-id
+       :product-id         (->int (:material line-item))
+       :delivered-quantity (:delivered-qty line-item)
+       :delivery-status    (deliver-statuses (:cust-cmpl-status line-item))
+       :number-per-unit    (:num-per-unit line-item)
+       :quantity           (:ordered-qty line-item)
+       :shipping-type      shipping-name
+       :total              (:total-item-price line-item)
+       :unit-price         (:unit-price line-item)
+       :uom                (:unit-of-measure line-item)})))
 
 (defn transform-order-summary [order]
   {:id               (->int (:order order))
    :account-id       (->int (:customer order))
-   :job-account-id   (->int (:job-account order))
+   :job-account-id   (:job-account order)
    :bill-address-id  (->int (:bill-address-code order))
    :pay-address-id   (->int (:pay-address-code order))
    :ship-address-id  (->int (:ship-address-code order))
@@ -53,8 +59,8 @@
    :job-account-name (:job-account-name order)
    :line-item-count  (:number-of-items order)
    :purchase-order   (:cust-po order)
-   :shipping-type    (:shipping-type order)
-   :status           (:cust-cmpl-status order)
+   :shipping-type    (shipping-types (:shipping-type order))
+   :status           (deliver-statuses (:cust-cmpl-status order))
    :sub-total        (:subtotal order)
    :tax              (:sales-tax order)
    :total            (:total-cost order)})
@@ -107,11 +113,11 @@
     (let [orders (:orders maps)]
       (map (partial transform-order maps) orders))))
 
-(defn order
-  ([order-id] (order :qas order-id))
+(defn order-rfc
+  ([order-id] (order-rfc :qas order-id))
   ([system order-id]
     (ppn (str "getting order " order-id " on " system))
-    (let [order-fn (find-function system :Z_O_ORDERS_QUERY) id-seq-num (atom 0)]
+    (let [order-fn (find-function system :Z_O_ORDERS_QUERY)]
       (push order-fn {
         :i-order (as-document-num order-id)
         :if-orders "X"
@@ -119,7 +125,13 @@
         :if-addresses "X"
         :if-texts "X"})
       (execute order-fn)
-      (let [result (first (transform-orders order-fn))] result))))
+      order-fn)))
+
+(defn order
+  ([order-id] (order :qas order-id))
+  ([system order-id]
+   (let [response (order-rfc system order-id)]
+     (let [result (first (transform-orders response))] result))))
 
 (defn line-item->json-api [line-item]
   {:type       "line-item"
@@ -155,11 +167,21 @@
   {:type       "comment"
    :id         (:id comment)
    :attributes (dissoc comment
-                       :id)})
+                       :id
+                       :line-item-id
+                       :order-id)
+   :relationships
+   {:line-item
+    {:data
+     {:type "line-item"
+      :id   (:line-item-id comment)}}
+    :order
+    {:data
+     {:type "order"
+      :id   (:order-id comment)}}}})
 
 (defn comments->json-api [comments]
   (map comment->json-api comments))
-
 
 (defn address->json-api [address]
   {:type       "address"
@@ -226,6 +248,12 @@
                          (line-items->json-api line-items)])}))
 
 ;; (def f (order "3970176"))
+;; (def f (order :prd "4152708"))
+;; (def g (order-rfc :prd "4152708"))
+
+;; (ppn f)
 ;; (ppn (order->json-api f))
+;; (ppn (retrieve-maps g))
+;; (ppn (function-interface g))
 
 (println "done loading summit.sap.order")
