@@ -83,7 +83,7 @@
                            )
         ))
 
-    (GET "/orders/:id" req
+    (GET "/v2/orders/:id" req
       (let [customer nil
             server (keyword (get-keyword-param req :server default-server))
             id (->int (get-param req :id nil))
