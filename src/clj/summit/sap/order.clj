@@ -127,15 +127,6 @@
       (execute order-fn)
       order-fn)))
 
-(defn document-rfc
-  ([order-id] (order-rfc :qas order-id))
-  ([system order-id]
-   (ppn (str "getting document-flow" order-id " on " system))
-   (let [doc-fn (find-function system :Z_O_VBFA_EXTRACT)]
-     (push doc-fn {:i-doc-num(as-document-num order-id)})
-     (execute doc-fn)
-     doc-fn)))
-
 (defn order
   ([order-id] (order :qas order-id))
   ([system order-id]
@@ -191,7 +182,6 @@
 
 (defn comments->json-api [comments]
   (map comment->json-api comments))
-
 
 (defn address->json-api [address]
   {:type       "address"
