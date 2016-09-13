@@ -47,6 +47,16 @@
           (Double/parseDouble v)))
       (double v))))
 
+(defn ->long [v]
+  (if (nil? v)
+    nil
+    (if (string? v)
+      (let [v (str/trim v)]
+        (if (empty? v)
+          nil
+          (-> v Double/parseDouble long)))
+      (long v))))
+
 (defn as-integer [string]
   (->int string))
 

@@ -3,7 +3,7 @@
 (ns summit.sap.order
   (:require [summit.sap.core :refer :all]
             [clojure.string :as str]
-            [summit.utils.core :as utils :refer [->int as-document-num ppn]]
+            [summit.utils.core :as utils :refer [->int ->long as-document-num ppn]]
             [summit.sap.lookup-tables :as lookup-tables :refer [deliver-statuses shipping-types]]
             ))
 
@@ -34,7 +34,8 @@
           shipping-name (shipping-types (:shipping-type line-item))]
       {:id                 (str order-id "-" line-item-id)
        :account-id         (->int (:customer line-item))
-       :job-account-id     (:job-account line-item)
+       ;; :job-account-id     (:job-account line-item)
+       :job-account-id     (->long (:job-account line-item))
        :order-id           order-id
        :product-id         (->int (:material line-item))
        :delivered-quantity (:delivered-qty line-item)
@@ -49,7 +50,7 @@
 (defn transform-order-summary [order]
   {:id               (->int (:order order))
    :account-id       (->int (:customer order))
-   :job-account-id   (:job-account order)
+   :job-account-id   (->long (:job-account order))
    :bill-address-id  (->int (:bill-address-code order))
    :pay-address-id   (->int (:pay-address-code order))
    :ship-address-id  (->int (:ship-address-code order))
