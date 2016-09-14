@@ -53,7 +53,7 @@
      :links (project-link id)
      ;; :attributes (dissoc proj :id :sold-to :ship-to-ids)
      :attributes {:id id :name (:name proj)}
-     :relationships {:data {:account {:type "account" :id account-id}}}
+     :relationships {:account {:data {:type "account" :id account-id}}}
      ;; :relationships
      ;; {:account {:data {:type "sold-to" :id (:sold-to proj)}}}
      }))
