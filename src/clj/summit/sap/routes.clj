@@ -38,7 +38,7 @@
 (defn debugged-body [m request debug-map]
   (let [body (or m {:errors ["not found"]})]
     (if true
-      (merge body {:debug (merge debug-map {:request (utils/clean-request request)})})
+      (merge body {:meta {:debug (merge debug-map {:request (utils/clean-request request)})}})
       body
       )))
 
