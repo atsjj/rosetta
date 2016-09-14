@@ -367,20 +367,27 @@
                      :project-line-item-attributes (attrize (:line-item-attr-defs maps))
                      :project-delivery-attributes (attrize (:delivery-attr-defs maps))}
         :relationships {:project-orders {:data json-orders}
-                        :drawings (for [[id _] drawings]
-                                    {:type :drawing :id id})
-                        :circuits (for [[id _] circuits]
-                                    {:type :circuit :id id})
+                        :drawings {:data
+                                   (for [[id _] drawings]
+                                     {:type :drawing :id id})}
+                        :circuits {:data
+                                   (for [[id _] circuits]
+                                     {:type :circuit :id id})}
                         }
         }
        :included
-       {
-        :project-orders orders
-        :project-line-items items
-        :project-deliveries deliveries
-        :drawings (drawings->json-api project-id drawings)
-        :circuits (circuits->json-api project-id circuits)
-        }
+       (concat orders items deliveries
+                (drawings->json-api project-id drawings)
+                (circuits->json-api project-id circuits)
+               )
+       ;; :included
+       ;; {
+       ;;  :project-orders orders
+       ;;  :project-line-items items
+       ;;  :project-deliveries deliveries
+       ;;  :drawings (drawings->json-api project-id drawings)
+       ;;  :circuits (circuits->json-api project-id circuits)
+       ;;  }
        :raw maps
        })
     ))
