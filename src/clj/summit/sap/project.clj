@@ -299,9 +299,8 @@
        (map (fn [m] {:type :project-delivery
                      :id (-> m :delivery :delivery)
                      :attributes (:delivery-attr-vals m)}))
-       ;; (filter #(not-empty %))
+       (filter #(not-empty (:id %)))
        set
-       ;; (map delivery->json-api)
        ))
 
 (defn- attrize [attribute-maps]
@@ -338,7 +337,10 @@
      }))
 
 (defn- extract-drawings [status-lines]
-  (utils/collect-by #(-> % :order :drawing-num) #(-> % :order :order-num) status-lines))
+  (utils/collect-by
+   #(-> % :order :drawing-num)
+   #(-> % :order :order-num)
+   status-lines))
   ;; (disj (set (map #(-> % :order :drawing-num) status-lines)) ""))
 
 (defn- extract-circuits [status-lines]
