@@ -11,9 +11,11 @@
 ;;     All projects for an account
 
 (def ^:private et-project-fields [:client :id :sold-to :name :title :start-date :end-date :service-center-code :status :last-modifier :modified-on])
-(def ^:private cached-project-names (atom {}))
+(def ^:private cached-projects (atom {}))
 (defn- project-name [id]
-  (@cached-project-names id))
+  (:name (@cached-projects id)))
+(defn- project-account-num [id]
+  (:account-num (@cached-projects id)))
 
 
 (defn- transform-triplets [m attr-defs]
@@ -72,7 +74,11 @@
            ;;                                     }) projs)
            ]
        (doseq [proj projs]
-         (swap! cached-project-names assoc (:id proj) (:name proj)))
+         ;; (swap! cached-project-names assoc (:id proj) (:name proj)))
+         (swap! cached-projects assoc (:id proj)
+                {:id (:id proj)
+                 :account-num account-num
+                 :name (:name proj)}))
        {:data
         (map (partial project->json-api account-num) projs)
         }
@@ -412,6 +418,9 @@
            [:data :id] project-id)
           (assoc-in
            [:data :name] (project-name project-id))
+          (assoc-in
+           [:data :relationships :account]
+           {:data {:type "account" :id (project-account-num project-id)}})
           )))
      )))
 ;; (project 1)
