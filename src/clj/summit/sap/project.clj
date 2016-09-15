@@ -67,6 +67,7 @@
 (defn projects
   ([account-num] (projects :qas account-num))
   ([server account-num]
+   (println "getting projects for accont number: " account-num " on server " server)
    (let [f (find-function server :Z_O_ZVSEMM_KUNAG_ASSOC_PROJ)]
      (push f {:i_kunag (as-document-num account-num)})
      (execute f)

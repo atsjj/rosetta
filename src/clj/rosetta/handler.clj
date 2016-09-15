@@ -7,7 +7,7 @@
             [mount.core :as mount]
             [rosetta.middleware :as middleware]
 
-            [summit.sap.routes :refer [sap-routes]]
+            [summit.sap.routes :refer [sap-routes-v2]]
             ))
 
 (mount/defstate init-app
@@ -16,7 +16,7 @@
 
 (def app-routes
   (routes
-    (-> #'sap-routes
+    (-> #'sap-routes-v2
         ;; #'home-routes
         (wrap-routes middleware/wrap-csrf)
         (wrap-routes middleware/wrap-formats))

@@ -24,11 +24,11 @@
   ([request param-name default]
    (keyword (get-param request param-name default))))
 
-(defn get-project [customer server project-id]
+(defn get-project [server project-id]
   (project/project server project-id)
   )
 
-(defn get-projects [customer server account-num]
+(defn get-projects [server account-num]
   (project/projects server account-num)
   )
 
@@ -56,34 +56,52 @@
         :body body}
        ))))
 
-(defroutes sap-routes
+(defroutes sap-routes-v2
   (context "/api" []
-    (GET "/projects/:id" req
-      (let [customer nil
-            server (keyword (get-keyword-param req :server default-server))
-            id (->int (get-param req :id nil))
-            ;; id (->int (:id (:params req)))
-            ;; id 1
-            proj (get-project customer server id)
+    (context "/:version-num" []
+      (GET "/accounts/:account-id/projects/:project-id" req
+        (let [server (keyword (get-keyword-param req :server default-server))
+              id (->int (get-param req :project-id nil))
+              proj (get-project server id)
+              ]
+          (json-api-response proj
+                             req
+                             {:server server :project-id id}
+                             )
+          ))
+
+    (GET "/projects/:project-id" req
+      (let [server (keyword (get-keyword-param req :server default-server))
+            id (->int (get-param req :project-id nil))
+            proj (get-project server id)
             ]
         (json-api-response proj
                            req
-                           {:server server :customer customer :project-id id}
+                           {:server server :project-id id}
+                           )
+        ))
+
+    (GET "/accounts/:account-id/projects" req
+      (let [server (keyword (get-keyword-param req :server default-server))
+            account-num (get-param req :account-id nil)
+            projs (get-projects server account-num)]
+        (json-api-response projs
+                           req
+                           {:server server :account-num account-num}
                            )
         ))
 
     (GET "/projects" req
       (let [server (keyword (get-keyword-param req :server default-server))
-            customer nil
-            account-num (get-param req :account "1002225")
-            projs (get-projects customer server account-num)]
+            account-num (get-param req :account nil)
+            projs (get-projects server account-num)]
         (json-api-response projs
                            req
-                           {:server server :customer customer :account-num account-num}
+                           {:server server :account-num account-num}
                            )
         ))
 
-    (GET "/v2/orders/:id" req
+    (GET "/orders/:id" req
       (let [customer nil
             ;; server (keyword (get-keyword-param req :server default-server))
             server (keyword (get-keyword-param req :server :prd))
@@ -96,5 +114,5 @@
                            req
                            {:server server :customer customer :order-id id}
                            )
-        ))
+        )))
     ))
