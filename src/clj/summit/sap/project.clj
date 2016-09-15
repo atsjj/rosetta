@@ -239,7 +239,10 @@
   {:type :project-order
    :id (:id order)
    :attributes (dissoc order :id :project-id :line-item-ids)
-   :relationships {:order {:data {:type :order :id (:id order)}}
+   :relationships {:order
+                   {:links
+                    {:related (str "/api/v2/orders/" (:id order))}
+                    :data {:type :order :id (:id order)}}
                    :project {:data {:type :project :id (:project-id order)}}
                    :project-line-items {:data (map (fn [x] {:type :project-line-item :id x}) (:line-item-ids order))}
                    }
