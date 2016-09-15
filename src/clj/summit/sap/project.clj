@@ -62,7 +62,7 @@
         :id account-id}}
       :project-orders
       {:links
-       {:related (project-link id)}}}
+       {:related (:self (project-link id))}}}
      ;; :relationships
      ;; {:account {:data {:type "sold-to" :id (:sold-to proj)}}}
      }))
