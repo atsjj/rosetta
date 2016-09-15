@@ -46,7 +46,7 @@
   (swap! projs update-in [(->int (second v)) :ship-to-ids] conj (->int (nth v 2))))
 
 (defn- project-link [id]
-  {:self (str "/api/project/" id)})
+  {:self (str "/api/projects/" id)})
 
 (defn- project->json-api [account-id proj]
   (let [id (:id proj)]
@@ -55,7 +55,14 @@
      :links (project-link id)
      ;; :attributes (dissoc proj :id :sold-to :ship-to-ids)
      :attributes {:id id :name (:name proj)}
-     :relationships {:account {:data {:type "account" :id account-id}}}
+     :relationships
+     {:account
+      {:data
+       {:type "account"
+        :id account-id}}
+      :project-orders
+      {:links
+       {:related (project-link id)}}}
      ;; :relationships
      ;; {:account {:data {:type "sold-to" :id (:sold-to proj)}}}
      }))
