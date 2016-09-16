@@ -237,17 +237,20 @@
     ;; (set orders)))
 
 (defn- order->json-api [order]
-  {:type :project-order
-   :id (:id order)
-   :attributes (dissoc order :id :project-id :line-item-ids)
-   :relationships {:order
-                   {:links
-                    {:related (str "/api/v2/orders/" (:id order))}
-                    :data {:type :order :id (:id order)}}
-                   :project {:data {:type :project :id (:project-id order)}}
-                   :project-line-items {:data (map (fn [x] {:type :project-line-item :id x}) (:line-item-ids order))}
-                   }
-   })
+  (let [order-id (:id order)
+        project-id (:project-id order)
+        proj-order-id (str project-id "-" order-id)]
+    {:type :project-order
+     :id order-id
+     :attributes (dissoc order :id :project-id :line-item-ids)
+     :relationships {:order
+                     {:links
+                      {:related (str "/api/v2/orders/" order-id)}
+                      :data {:type :order :id order-id}}
+                     :project {:data {:type :project :id project-id}}
+                     :project-line-items {:data (map (fn [x] {:type :project-line-item :id x}) (:line-item-ids order))}
+                     }
+     }))
 
 (defn- extract-orders [maps]
   (->> maps

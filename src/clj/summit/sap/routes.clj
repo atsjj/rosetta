@@ -9,18 +9,26 @@
 
 (def default-server :qas)
 
+(defn gather-params [req]
+  (merge
+   (:params req)
+   ;; (:filter req)))    ;; to accomodate json-api
+   (:filter (:params req))))    ;; to accomodate json-api
+
 (defn get-param
   "return named parameter from request"
   ([request param-name] (get-param request param-name nil))
   ([request param-name default]
-   (let [params (:params request)
-         filters (:filters params)
-         param (keyword param-name)]
-     ;; will be in filters for json-api
-     (or (and filters (param filters)) (param params) default))))
+   (utils/ppn "params" (:params request) "filter" (:filter request) "gathered" (gather-params request) param-name default)
+   (or ((gather-params request) param-name) default)))
+   ;; (let [params (:params request)
+   ;;       filters (:filters params)
+   ;;       param (keyword param-name)]
+   ;;   ;; will be in filters for json-api
+   ;;   (or (and filters (param filters)) (param params) default))))
 
 (defn get-keyword-param
-  ([request param-name] (get-param request param-name nil))
+  ([request param-name] (get-keyword-param request param-name nil))
   ([request param-name default]
    (keyword (get-param request param-name default))))
 
