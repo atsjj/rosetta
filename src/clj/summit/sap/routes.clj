@@ -111,8 +111,7 @@
 
     (GET "/orders/:id" req
       (let [customer nil
-            ;; server (keyword (get-keyword-param req :server default-server))
-            server (keyword (get-keyword-param req :server :prd))
+            server (keyword (get-keyword-param req :server default-server))
             id (->int (get-param req :id nil))
             ;; id (->int (:id (:params req)))
             ;; id 1
