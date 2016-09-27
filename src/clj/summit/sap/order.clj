@@ -32,19 +32,20 @@
   (let [order-id (->int (:order line-item))]
     (let [line-item-id  (->int (:item line-item))
           shipping-name (shipping-types (:shipping-type line-item))]
-      {:id                 (str order-id "-" line-item-id)
-       :account-id         (->int (:customer line-item))
-       :job-account-id     (->long (:job-account line-item))
-       :order-id           order-id
-       :product-id         (:material line-item)
-       :delivered-quantity (:delivered-qty line-item)
-       :delivery-status    (deliver-statuses (:cust-cmpl-status line-item))
-       :number-per-unit    (:num-per-unit line-item)
-       :quantity           (:ordered-qty line-item)
-       :shipping-type      shipping-name
-       :total              (:total-item-price line-item)
-       :unit-price         (:unit-price line-item)
-       :uom                (:unit-of-measure line-item)})))
+      {:id                   (str order-id "-" line-item-id)
+       :account-id           (->int (:customer line-item))
+       :job-account-id       (->long (:job-account line-item))
+       :order-id             order-id
+       :product-id           (:material line-item)
+       :customer-part-number (:cust-material line-item)
+       :delivered-quantity   (:delivered-qty line-item)
+       :delivery-status      (deliver-statuses (:cust-cmpl-status line-item))
+       :number-per-unit      (:num-per-unit line-item)
+       :quantity             (:ordered-qty line-item)
+       :shipping-type        shipping-name
+       :total                (:total-item-price line-item)
+       :unit-price           (:unit-price line-item)
+       :uom                  (:unit-of-measure line-item)})))
 
 (defn transform-order-summary [order]
   {:id               (->int (:order order))
