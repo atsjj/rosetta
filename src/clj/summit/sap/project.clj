@@ -311,13 +311,30 @@
   {:type "delivery"
    :id id})
 
+(defn- add-delivery->line-item-relationships [maps deliveries]
+  (map (fn [delivery]
+         (let [delivery-id (:id delivery)
+               matching (filter #(= (get-in % [:delivery :delivery]) delivery-id) maps)
+               ]
+           (assoc delivery :relationships
+                  {:data
+                   (map (fn [m]
+                          {:type :project-line-item
+                           :id (line-item-id m)}
+                          )
+                        matching)
+                   })))
+       deliveries))
+
 (defn- extract-deliveries [maps]
   (->> maps
        (map (fn [m] {:type :project-delivery
                      :id (-> m :delivery :delivery)
-                     :attributes (:delivery-attr-vals m)}))
+                     :attributes (:delivery-attr-vals m)
+                     }))
        (filter #(not-empty (:id %)))
        set
+       (add-delivery->line-item-relationships maps)
        ))
 
 (defn- attrize [attribute-maps]
