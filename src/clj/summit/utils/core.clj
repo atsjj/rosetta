@@ -86,12 +86,12 @@
   nil)
 
 
-;; SAP conversions
-
 (defn zero-pad [width string]
   (if string
     (let [s (str (apply str (repeat width "0")) string)]
       (subs s (- (count s) width)))))
+
+;; SAP conversions
 
 (defn as-matnr [string]
   (zero-pad 18 string))
