@@ -3,7 +3,8 @@
 (ns summit.sap.project
   (:require [summit.sap.core :refer :all]
             [clojure.string :as str]
-            [summit.utils.core :as utils :refer [->int as-document-num examples]]
+            [summit.utils.core :as utils :refer [->int examples]]
+            [summit.sap.conversions :as conv]
             ))
 
 
@@ -69,7 +70,7 @@
   ([server account-num]
    (println "getting projects for accont number: " account-num " on server " server)
    (let [f (find-function server :Z_O_ZVSEMM_KUNAG_ASSOC_PROJ)]
-     (push f {:i_kunag (as-document-num account-num)})
+     (push f {:i_kunag (conv/as-document-num-str account-num)})
      (execute f)
      (let [projs (map transform-project-summary (pull f :et-projects))
            ;; project-relationships (map (fn [m] {:type "project"
@@ -436,7 +437,7 @@
          id-seq-num (atom 0)]
        ;; note: :attr-conv will tell us the attribute type
        ;; (ppn (function-interface project-fn))
-     (push project-fn {:i-proj-id (as-document-num project-id)})
+     (push project-fn {:i-proj-id (conv/as-document-num-str project-id)})
      (execute project-fn)
      (let [result (transform-project project-id project-fn)]
        (when result
@@ -453,6 +454,6 @@
      )))
 ;; (project 1)
 ;; (project 2)
-;; (projects 1002224)
+;; (projects 1002225)
 
 (println "done loading summit.sap.project")

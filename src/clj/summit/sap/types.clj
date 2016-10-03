@@ -1,40 +1,10 @@
 (ns summit.sap.types
   (:require [clojure.string :as str]
             [summit.utils.core :refer :all]
+            [summit.sap.conversions :refer [as-matnr]]
             ;; [clojure.lang :refer [BigInt]]
             )
   )
-
-;; (defn ->str [a-name]
-;;   (if (string? a-name)
-;;     a-name
-;;     (if (number? a-name)
-;;       a-name
-;;       (str/replace
-;;        (str/upper-case
-;;         (if (keyword? a-name)
-;;           (name a-name)
-;;           (str a-name)))
-;;        "-" "_"))))
-
-;; (defn ->keyword [a-string]
-;;   (if (keyword? a-string)
-;;     a-string
-;;     (keyword
-;;      (str/lower-case (str/replace (str a-string) "_" "-")))))
-
-;; (defn as-matnr [string]
-;;   (let [s (str "000000000000000000" string)]
-;;     (subs s (- (count s) 18))))
-
-;; (defn as-document-num [string]
-;;   (let [s (str "0000000000" string)]
-;;     (subs s (- (count s) 10))))
-;; (as-document-num "asdf")
-
-;; (defn as-short-document-num [string]
-;;   "remove leading zeros"
-;;   (str/replace string #"^0*" ""))
 
 (defrecord sap-type [name summit-type sap-type sap->summit summit->sap validations])
 

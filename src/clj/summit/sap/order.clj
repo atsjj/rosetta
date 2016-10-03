@@ -3,7 +3,8 @@
 (ns summit.sap.order
   (:require [summit.sap.core :refer :all]
             [clojure.string :as str]
-            [summit.utils.core :as utils :refer [->int ->long as-document-num ppn]]
+            [summit.utils.core :as utils :refer [->int ->long ppn]]
+            [summit.sap.conversions :as conv]
             [summit.sap.lookup-tables :as lookup-tables :refer [deliver-statuses shipping-types]]
             ))
 
@@ -123,7 +124,7 @@
     (ppn (str "getting order " order-id " on " system))
     (let [order-fn (find-function system :Z_O_ORDERS_QUERY)]
       (push order-fn {
-        :i-order (as-document-num order-id)
+        :i-order (conv/as-document-num-str order-id)
         :if-orders "X"
         :if-details "X"
         :if-addresses "X"

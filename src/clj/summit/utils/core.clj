@@ -91,23 +91,6 @@
     (let [s (str (apply str (repeat width "0")) string)]
       (subs s (- (count s) width)))))
 
-;; SAP conversions
-
-(defn as-matnr [string]
-  (zero-pad 18 string))
-
-(defn as-document-num [string]
-  (zero-pad 10 string))
-;; (as-document-num "asdf")
-
-(defn as-short-document-num [string]
-  "remove leading zeros"
-  (if string (str/replace string #"^0*" "")))
-;; (as-short-document-num (as-document-num "00001"))
-
-(defn as-customer-num [string]
-  (as-document-num string))
-
 
 ;; Clean http request to enable printing
 
