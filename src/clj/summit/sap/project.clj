@@ -4,9 +4,7 @@
   (:require [summit.sap.core :refer :all]
             [clojure.string :as str]
             [summit.utils.core :as utils :refer [->int examples]]
-            [summit.sap.conversions :as conv]
-            ))
-
+            [summit.sap.conversions :as conv]))
 
 ;; ----------------------------------
 ;;     All projects for an account
@@ -18,7 +16,6 @@
 (defn- project-account-num [id]
   (:account-num (@cached-projects id)))
 
-
 (defn- transform-triplets [m attr-defs]
   (let [attr-defs (partition 3 attr-defs)]
     (into {}
@@ -27,23 +24,20 @@
               [web-name (name-transform-fn (m sap-name))])))))
 
 (defn- transform-project-summary [v]
-  (let [m (into {} (map vector et-project-fields v))
-        transformed-m
-        (->
-         m
-         (dissoc :client)
-         (assoc :sold-to (->int (:sold-to m))
-                :id (->int (:id m))
-                :status (case (:status m)
-                          "A" :active
-                          "P" :planning
-                          "C" :complete
-                          "Z" :cancelled
-                          (:status m))))]
-    ;; [(:id transformed-m) transformed-m]))
-     transformed-m))
+  (let [m (into {} (map vector et-project-fields v))]
+    (->
+     m
+     (dissoc :client)
+     (assoc :sold-to (->int (:sold-to m))
+            :id (->int (:id m))
+            :status (case (:status m)
+                      "A" :active
+                      "P" :planning
+                      "C" :complete
+                      "Z" :cancelled
+                      (:status m))))))
 
-(defn- transform-ship-to [projs v]   ;; v => [:client :project :ship-to]
+(defn- transform-ship-to [projs v]
   (swap! projs update-in [(->int (second v)) :ship-to-ids] conj (->int (nth v 2))))
 
 (defn- project-link [id]
@@ -61,8 +55,6 @@
       {:data
        {:type "account"
         :id account-id}}}
-     ;; :relationships
-     ;; {:account {:data {:type "sold-to" :id (:sold-to proj)}}}
      }))
 
 (defn projects
@@ -72,29 +64,14 @@
    (let [f (find-function server :Z_O_ZVSEMM_KUNAG_ASSOC_PROJ)]
      (push f {:i_kunag (conv/as-document-num-str account-num)})
      (execute f)
-     (let [projs (map transform-project-summary (pull f :et-projects))
-           ;; project-relationships (map (fn [m] {:type "project"
-           ;;                                     :id (:id m)
-           ;;                                     :links (project-link (:id m))
-           ;;                                     :relationships {:data {:type "account" :id (:id m)}}
-           ;;                                     }) projs)
-           ]
+     (let [projs (map transform-project-summary (pull f :et-projects))]
        (doseq [proj projs]
-         ;; (swap! cached-project-names assoc (:id proj) (:name proj)))
          (swap! cached-projects assoc (:id proj)
                 {:id (:id proj)
                  :account-num account-num
                  :name (:name proj)}))
        {:data
-        (map (partial project->json-api account-num) projs)
-        }
-       ;; {:data
-       ;;  {:type "account"
-       ;;   :id account-num
-       ;;   :relationships {:projects project-relationships}
-       ;;   }
-       ;;  :included (map project->json-api projs)
-       ;;  }
+        (map (partial project->json-api account-num) projs)}
        ))))
 
 
@@ -137,8 +114,6 @@
   {:order-info [;; :id (swap! id-seq-num inc)
                 :project-id :projid ->int
                 :order-num :vbeln-va ->int
-                ;; :id 
-                ;; :has-messages? (contains? messages order-num)
                 :drawing-num :bstkd identity
                 :schedule-date :edatu identity
                 :expected-date :bstdk identity
@@ -148,7 +123,6 @@
    :line-item  [:item-num :posnr-va ->int
                 :matnr :matnr ->int
                 :customer-matnr :kdmat identity
-                ;; :delivery-item :posnr-vl ->int
                 :descript :arktx identity
                 :circuit-id :circ-id identity
                 :requested-qty :kwmeng double
@@ -169,9 +143,6 @@
   (str (-> m :order :order-num) "-" (-> m :line-item :item-num)))
 
 (defn- collect-same [v id]
-  ;; (defn- collect-same [v id]
-  ;;   (filter #(= id (:id %)) v))
-
   (filter #(= id (:id %)) v))
 
 (defn- extract-attr-vals
@@ -209,21 +180,14 @@
             (let [web-name (first attr-def)
                   sap-name (second attr-def)
                   name-transform-fn (nth attr-def 2)]
-              [web-name (name-transform-fn (pull-map project-fn sap-name))]))))
-  )
-
-;; (project 1)
+              [web-name (name-transform-fn (pull-map project-fn sap-name))])))))
 
 (defn- transform-raw-order [m]
-  (let [order (:order m)
-        ;; line-item-id (-> m :line-item )
-        ]
+  (let [order (:order m)]
     (assoc
      (clojure.set/rename-keys order {:order-num :id})
      :line-item-id (line-item-id m)
-     :attrs (:order-attr-vals m)
-     )
-    ))
+     :attrs (:order-attr-vals m))))
 
 (defn- merge-order [orders order]
   (let [line-item-ids (apply conj [] (map :line-item-id orders))]
@@ -235,7 +199,6 @@
 (defn- join-like-orders [orders]
   (let [unique-orders (set (map #(dissoc % :line-item-id :attrs) orders))]
     (map #(merge-order (collect-same orders (:id %)) %) unique-orders)))
-    ;; (set orders)))
 
 (defn- order->json-api [order]
   (let [order-id (:id order)
@@ -249,42 +212,34 @@
                       {:related (str "/api/v2/orders/" order-id)}
                       :data {:type :order :id order-id}}
                      :project {:data {:type :project :id project-id}}
-                     :project-line-items {:data (map (fn [x] {:type :project-line-item :id x}) (:line-item-ids order))}
-                     }
-     }))
+                     :project-line-items {:data (map (fn [x] {:type :project-line-item :id x}) (:line-item-ids order))}}}))
 
 (defn- extract-orders [maps]
   (->> maps
-      (map transform-raw-order)
-      join-like-orders
-      (map order->json-api)
-      ))
+       (map transform-raw-order)
+       join-like-orders
+       (map order->json-api)))
 
 (defn- transform-raw-item [m]
   (let [item (:line-item m)
         order-id (-> m :order :order-num)
-        delivery (-> m :delivery :delivery)
-        ]
+        delivery (-> m :delivery :delivery)]
     (assoc item
            :id (line-item-id m)
            :order-id order-id
            :delivery delivery
-           :attrs (:line-item-attr-vals m)
-           )))
+           :attrs (:line-item-attr-vals m))))
 
 (defn- merge-item [items item]
-  (let [
-        delivery-ids (apply conj [] (filter #(not-empty %) (map :delivery items)))
+  (let [delivery-ids (apply conj [] (filter #(not-empty %) (map :delivery items)))
         delivered-qty (apply + (map :delivered-qty items))
-        picked-qty (apply + (map :picked-qty items))
-        ]
+        picked-qty (apply + (map :picked-qty items))]
     (merge
      item
      {:delivery-ids delivery-ids
       :delivered-qty delivered-qty
       :picked-qty picked-qty
-      :attributes (:attrs (first items))}
-     )))
+      :attributes (:attrs (first items))})))
 
 (defn- join-like-items [items]
   (let [unique-items (set (map #(dissoc % :delivery :delivered-qty :picked-qty :attrs) items))]
@@ -296,17 +251,13 @@
    :attributes (dissoc item :order-id :delivery-ids)
    :relationships {:project-order {:data {:type :project-order :id (:order-id item)}}
                    :line-item {:data {:type :line-item :id (:id item)}}
-                   :project-deliveries {:data (map (fn [x] {:type :project-delivery :id x}) (:delivery-ids item))}
-                   }
-   })
+                   :project-deliveries {:data (map (fn [x] {:type :project-delivery :id x}) (:delivery-ids item))}}})
 
 (defn- extract-line-items [maps]
   (->> maps
-      (map transform-raw-item)
-      join-like-items
-      (map line-item->json-api)
-      ))
-
+       (map transform-raw-item)
+       join-like-items
+       (map line-item->json-api)))
 
 (defn- delivery->json-api [id]
   {:type "delivery"
@@ -315,36 +266,29 @@
 (defn- add-delivery->line-item-relationships [maps deliveries]
   (map (fn [delivery]
          (let [delivery-id (:id delivery)
-               matching (filter #(= (get-in % [:delivery :delivery]) delivery-id) maps)
-               ]
+               matching (filter #(= (get-in % [:delivery :delivery]) delivery-id) maps)]
            (assoc delivery :relationships
                   {:data
                    (map (fn [m]
                           {:type :project-line-item
-                           :id (line-item-id m)}
-                          )
-                        matching)
-                   })))
+                           :id (line-item-id m)})
+                        matching)})))
        deliveries))
 
 (defn- extract-deliveries [maps]
   (->> maps
        (map (fn [m] {:type :project-delivery
                      :id (-> m :delivery :delivery)
-                     :attributes (:delivery-attr-vals m)
-                     }))
+                     :attributes (:delivery-attr-vals m)}))
        (filter #(not-empty (:id %)))
        set
-       (add-delivery->line-item-relationships maps)
-       ))
+       (add-delivery->line-item-relationships maps)))
 
 (defn- attrize [attribute-maps]
-  ;; attribute-maps)
   (map (fn [[key attr]]
          {:key (:id attr)
           :value (:title attr)
-          :sequence (->int (last (str/split (:id attr) #"-")))}
-         )
+          :sequence (->int (last (str/split (:id attr) #"-")))})
        attribute-maps))
 
 (defn- drawings->json-api [project-id drawings]
@@ -355,9 +299,7 @@
      {:project {:data {:type :project :id project-id}}
       :project-orders
       (map (fn [x] {:type :project-order :id x})
-           order-nums)
-      }
-     }))
+           order-nums)}}))
 
 (defn- circuits->json-api [project-id circuits]
   (for [[id order-nums] circuits]
@@ -367,36 +309,29 @@
      {:project {:data {:type :project :id project-id}}
       :project-orders
       (map (fn [x] {:type :project-order :id x})
-           order-nums)
-      }
-     }))
+           order-nums)}}))
 
 (defn- extract-drawings [status-lines]
   (utils/collect-by
    #(-> % :order :drawing-num)
    #(-> % :order :order-num)
    status-lines))
-  ;; (disj (set (map #(-> % :order :drawing-num) status-lines)) ""))
 
 (defn- extract-circuits [status-lines]
   (dissoc
    (utils/collect-by #(-> % :line-item :circuit-id) #(-> % :order :order-num) status-lines)
    ""))
-  ;; (disj (set (map #(-> % :line-item :circuit-id) status-lines)) ""))
 
 (defn transform-project [project-id project-fn]
-  (let [maps (retrieve-maps project-fn)
-        ]
-    (let [
-          status-lines (:status-lines maps)
+  (let [maps (retrieve-maps project-fn)]
+    (let [status-lines (:status-lines maps)
           order-ids (map #(-> % :order :order-num) status-lines)
           items (extract-line-items status-lines)
           orders (extract-orders status-lines)
           deliveries (extract-deliveries status-lines)
           drawings (extract-drawings status-lines)
           circuits (extract-circuits status-lines)
-          json-orders (map (fn [id] {:type :project-order :id id}) order-ids)
-          ]
+          json-orders (map (fn [id] {:type :project-order :id id}) order-ids)]
       {:data
        {:type :project
         :id project-id
@@ -409,25 +344,12 @@
                                      {:type :drawing :id id})}
                         :circuits {:data
                                    (for [[id _] circuits]
-                                     {:type :circuit :id id})}
-                        }
-        }
+                                     {:type :circuit :id id})}}}
        :included
        (concat orders items deliveries
-                (drawings->json-api project-id drawings)
-                (circuits->json-api project-id circuits)
-               )
-       ;; :included
-       ;; {
-       ;;  :project-orders orders
-       ;;  :project-line-items items
-       ;;  :project-deliveries deliveries
-       ;;  :drawings (drawings->json-api project-id drawings)
-       ;;  :circuits (circuits->json-api project-id circuits)
-       ;;  }
-       :raw maps
-       })
-    ))
+               (drawings->json-api project-id drawings)
+               (circuits->json-api project-id circuits))
+       :raw maps})))
 
 (defn project
   ([project-id] (project :qas project-id))
@@ -435,8 +357,6 @@
    (utils/ppn (str "getting project " project-id " on " system))
    (let [project-fn (find-function system :Z_O_ZVSEMM_PROJECT_CUBE)
          id-seq-num (atom 0)]
-       ;; note: :attr-conv will tell us the attribute type
-       ;; (ppn (function-interface project-fn))
      (push project-fn {:i-proj-id (conv/as-document-num-str project-id)})
      (execute project-fn)
      (let [result (transform-project project-id project-fn)]
@@ -449,11 +369,11 @@
            [:data :name] (project-name project-id))
           (assoc-in
            [:data :relationships :account]
-           {:data {:type "account" :id (project-account-num project-id)}})
-          )))
-     )))
-;; (project 1)
-;; (project 2)
-;; (projects 1002225)
+           {:data {:type "account" :id (project-account-num project-id)}})))))))
+(examples
+ (project 1)
+ (project 2)
+ (projects 1002225)
+ )
 
 (println "done loading summit.sap.project")
