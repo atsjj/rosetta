@@ -29,27 +29,43 @@
        :order-id     order-id
        :value        (:tdline comment)})))
 
+(defn handle-special-line-item-formatting [line-item transformed-line-item]
+  (cond
+    (= (:text-flag line-item) 'X') (dissoc transformed-line-item [:quantity :uom :unit-price :units-per-package :total-price])
+    (= (:hllot-flag line-item) 'X')
+      (assoc (dissoc transformed-line-item [:unit-price :units-per-package])
+             :delivered-quantity (:quantity transformed-line-item)) ;; to prevent 'Remaining open' from showing
+    (= (:llot-kit-flag line-item) 'X') (dissoc transformed-line-item [:unit-price :units-per-package :total-price])
+    (= (:sb-flag line-item) 'X') (dissoc transformed-line-item [:quantity :uom :unit-price :units-per-package])
+    :else transformed-line-item
+    )
+  )
+
 (defn transform-line-item [line-item]
   (let [order-id          (->int (:order line-item))
         line-item-id      (->int (:item line-item))
         shipping-name     (shipping-types (:shipping-type line-item))
         package-price     (:unit-price line-item)
         units-per-package (:num-per-unit line-item)]
-    {:id                   (str order-id "-" line-item-id)
-     :account-id           (->int (:customer line-item))
-     :job-account-id       (->long (:job-account line-item))
-     :order-id             order-id
-     :product-id           (:material line-item)
-     :customer-part-number (:cust-material line-item)
-     :delivered-quantity   (:delivered-qty line-item)
-     :delivery-status      (deliver-statuses (:cust-cmpl-status line-item))
-     :units-per-package    units-per-package
-     :quantity             (:ordered-qty line-item)
-     :uom                  (:unit-of-measure line-item)
-     :shipping-type        shipping-name
-     :unit-price           (if (> units-per-package 0) (/ package-price units-per-package) package-price)
-     :total-price          (:total-item-price line-item)
-     }))
+
+    (handle-special-line-item-formatting
+     line-item
+     {:id                   (str order-id "-" line-item-id)
+      :account-id           (->int (:customer line-item))
+      :job-account-id       (->long (:job-account line-item))
+      :order-id             order-id
+      :product-id           (:material line-item)
+      :customer-part-number (:cust-material line-item)
+      :delivered-quantity   (:delivered-qty line-item)
+      :delivery-status      (deliver-statuses (:cust-cmpl-status line-item))
+      :units-per-package    units-per-package
+      :quantity             (:ordered-qty line-item)
+      :uom                  (:unit-of-measure line-item)
+      :shipping-type        shipping-name
+      :unit-price           (if (> units-per-package 0) (/ package-price units-per-package) package-price)
+      :total-price          (:total-item-price line-item)
+      }
+     )))
 
 (defn transform-order-summary [order]
   {:id               (->int (:order order))
