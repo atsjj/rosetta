@@ -7,7 +7,7 @@
 
             [summit.utils.core :as utils]))
 
-(def default-server :qas)
+(def default-server :prd)
 
 (defn gather-params [req]
   (merge
