@@ -331,7 +331,7 @@
           deliveries (extract-deliveries status-lines)
           drawings (extract-drawings status-lines)
           circuits (extract-circuits status-lines)
-          json-orders (map (fn [id] {:type :project-order :id id}) order-ids)]
+          json-orders (set (map (fn [id] {:type :project-order :id id}) order-ids))]
       {:data
        {:type :project
         :id project-id

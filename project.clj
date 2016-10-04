@@ -26,6 +26,7 @@
 
                  [org.clojure/core.async "0.2.385"]
                  [argo "0.1.2"]  ;; for json api
+                 [chazel "0.1.10"]
                  ]
 
   :min-lein-version "2.0.0"
