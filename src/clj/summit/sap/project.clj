@@ -115,9 +115,6 @@
                 :project-id :projid ->int
                 :order-num :vbeln-va ->int
                 :drawing-num :bstkd identity
-                :schedule-date :edatu identity
-                :expected-date :bstdk identity
-                :entered-date :audat identity
                 ;; ])]
 ]
    :line-item  [:item-num :posnr-va ->int
@@ -136,7 +133,11 @@
                 :storage-loc :lgort identity
                 :service-center :werks identity
                 :trailer-atp :cust-loc-atp double
-                :service-center-atp :main-loc-atp double]
+                :service-center-atp :main-loc-atp double
+                :schedule-date :edatu identity
+                :expected-date :bstdk identity
+                :entered-date :audat identity
+                ]
    :delivery   [:delivery :vbeln-vl identity]})
 
 (defn- line-item-id [m]
@@ -198,7 +199,8 @@
 
 (defn- join-like-orders [orders]
   (let [unique-orders (set (map #(dissoc % :line-item-id :attrs) orders))]
-    (map #(merge-order (collect-same orders (:id %)) %) unique-orders)))
+    (map #(merge-order (collect-same orders (:id %)) %) unique-orders)
+    ))
 
 (defn- order->json-api [order]
   (let [order-id (:id order)
@@ -218,7 +220,8 @@
   (->> maps
        (map transform-raw-order)
        join-like-orders
-       (map order->json-api)))
+       (map order->json-api)
+       ))
 
 (defn- transform-raw-item [m]
   (let [item (:line-item m)
@@ -349,7 +352,8 @@
        (concat orders items deliveries
                (drawings->json-api project-id drawings)
                (circuits->json-api project-id circuits))
-       :raw maps})))
+       ;; :raw maps
+       })))
 
 (defn project
   ([project-id] (project :qas project-id))
