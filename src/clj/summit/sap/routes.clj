@@ -32,6 +32,11 @@
   ([request param-name default]
    (keyword (get-param request param-name default))))
 
+(defn get-env-param
+  ([request param-name] (get-env-param request param-name nil))
+  ([request param-name default]
+   (keyword (or (get-in (gather-params request) [:env param-name]) default))))
+
 (defn get-project [server project-id]
   (project/project server project-id)
   )
@@ -68,7 +73,7 @@
   (context "/api" []
     (context "/:version-num" []
       (GET "/accounts/:account-id/projects/:project-id" req
-        (let [server (keyword (get-keyword-param req :server default-server))
+        (let [server (keyword (get-env-param req :server default-server))
               id (->int (get-param req :project-id nil))
               proj (get-project server id)
               ]
@@ -79,7 +84,7 @@
           ))
 
     (GET "/projects/:project-id" req
-      (let [server (keyword (get-keyword-param req :server default-server))
+      (let [server (keyword (get-env-param req :server default-server))
             id (->int (get-param req :project-id nil))
             proj (get-project server id)
             ]
@@ -90,7 +95,7 @@
         ))
 
     (GET "/accounts/:account-id/projects" req
-      (let [server (keyword (get-keyword-param req :server default-server))
+      (let [server (keyword (get-env-param req :server default-server))
             account-num (get-param req :account-id nil)
             projs (get-projects server account-num)]
         (json-api-response projs
@@ -100,7 +105,7 @@
         ))
 
     (GET "/projects" req
-      (let [server (keyword (get-keyword-param req :server default-server))
+      (let [server (keyword (get-env-param req :server default-server))
             account-num (get-param req :account nil)
             projs (get-projects server account-num)]
         (json-api-response projs
@@ -111,7 +116,7 @@
 
     (GET "/orders/:id" req
       (let [customer nil
-            server (keyword (get-keyword-param req :server default-server))
+            server (keyword (get-env-param req :server default-server))
             id (->int (get-param req :id nil))
             ;; id (->int (:id (:params req)))
             ;; id 1
