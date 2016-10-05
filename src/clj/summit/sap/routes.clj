@@ -7,7 +7,7 @@
 
             [summit.utils.core :as utils]))
 
-(def default-server :prd)
+(def default-server (atom :prd))
 
 (defn gather-params [req]
   (merge
@@ -92,8 +92,29 @@
          :headers {"Content-Type" "text/json"}
          :body {:cache-cleared true}})
 
+      (GET "/default-server/:server-name" req
+        (let [server-name (get-in req [:params :server-name])]
+          (if (contains? #{"dev" "qas" "prd"} server-name)
+            (do
+              (reset! default-server (keyword server-name))
+              {:status 200
+               :headers {"Content-Type" "text/json"}
+               :body {:new-server-name server-name}
+               })
+            {:status 400
+             :headers {"Content-Type" "text/json"}
+             :body {:no-such-server server-name}
+             }
+            )))
+
+      (GET "/default-server" req
+        {:status 200
+         :headers {"Content-Type" "text/json"}
+         :body {:server-name @default-server}
+         })
+
       (GET "/accounts/:account-id/projects/:project-id" req
-        (let [server (keyword (get-env-param req :server default-server))
+        (let [server (keyword (get-env-param req :server @default-server))
               id (->int (get-param req :project-id nil))
               ;; proj (get-project server id)
               proj (cache #'get-project server id)
@@ -105,7 +126,7 @@
           ))
 
     (GET "/projects/:project-id" req
-      (let [server (keyword (get-env-param req :server default-server))
+      (let [server (keyword (get-env-param req :server @default-server))
             id (->int (get-param req :project-id nil))
             ;; proj (get-project server id)
             proj (cache #'get-project server id)
@@ -117,7 +138,7 @@
         ))
 
     (GET "/accounts/:account-id/projects" req
-      (let [server (keyword (get-env-param req :server default-server))
+      (let [server (keyword (get-env-param req :server @default-server))
             account-num (get-param req :account-id nil)
             projs (get-projects server account-num)]
         (json-api-response projs
@@ -127,7 +148,7 @@
         ))
 
     (GET "/projects" req
-      (let [server (keyword (get-env-param req :server default-server))
+      (let [server (keyword (get-env-param req :server @default-server))
             account-num (get-param req :account nil)
             projs (get-projects server account-num)]
         (json-api-response projs
@@ -138,7 +159,7 @@
 
     (GET "/orders/:id" req
       (let [customer nil
-            server (keyword (get-env-param req :server default-server))
+            server (keyword (get-env-param req :server @default-server))
             id (->int (get-param req :id nil))
             ;; id (->int (:id (:params req)))
             ;; id 1
