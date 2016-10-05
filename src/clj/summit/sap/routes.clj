@@ -37,16 +37,26 @@
   ([request param-name default]
    (keyword (or (get-in (gather-params request) [:env param-name]) default))))
 
-(defn get-project [server project-id]
-  (project/project server project-id)
-  )
+(defn- get-project [server project-id]
+  (project/project server project-id))
 
-(defn get-projects [server account-num]
-  (project/projects server account-num)
-  )
+(defn- get-projects [server account-num]
+  (project/projects server account-num))
 
-(defn get-order [customer server order-id]
+(defn- get-order [customer server order-id]
   (order/order->json-api (order/order server order-id)))
+
+(def ^:private rfc-caches (atom {}))
+
+(defn- cache [fn-var & args]
+  (let [key args
+        result (@rfc-caches key)]
+    (if result
+      result
+      (let [result (apply fn-var args)]
+        (swap! rfc-caches assoc key result)
+        result))))
+;; (cache #'get-project :prd 3)
 
 (defn debugged-body [m request debug-map]
   (let [body (or m {:errors ["not found"]})]
@@ -75,7 +85,8 @@
       (GET "/accounts/:account-id/projects/:project-id" req
         (let [server (keyword (get-env-param req :server default-server))
               id (->int (get-param req :project-id nil))
-              proj (get-project server id)
+              ;; proj (get-project server id)
+              proj (cache #'get-project server id)
               ]
           (json-api-response proj
                              req
@@ -86,7 +97,8 @@
     (GET "/projects/:project-id" req
       (let [server (keyword (get-env-param req :server default-server))
             id (->int (get-param req :project-id nil))
-            proj (get-project server id)
+            ;; proj (get-project server id)
+            proj (cache #'get-project server id)
             ]
         (json-api-response proj
                            req
@@ -120,9 +132,10 @@
             id (->int (get-param req :id nil))
             ;; id (->int (:id (:params req)))
             ;; id 1
-            proj (get-order customer server id)
+            ;; proj (get-order customer server id)
+            order (cache #'get-order customer server id)
             ]
-        (json-api-response proj
+        (json-api-response order
                            req
                            {:server server :customer customer :order-id id}
                            )
