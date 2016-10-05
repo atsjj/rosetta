@@ -58,6 +58,10 @@
         result))))
 ;; (cache #'get-project :prd 3)
 
+(defn- clear-cache []
+  (reset! rfc-caches {}))
+;; (clear-cache)
+
 (defn debugged-body [m request debug-map]
   (let [body (or m {:errors ["not found"]})]
     (if true
@@ -82,6 +86,12 @@
 (defroutes sap-routes-v2
   (context "/api" []
     (context "/:version-num" []
+      (GET "/clear-cache" req
+        (clear-cache)
+        {:status 200
+         :headers {"Content-Type" "text/json"}
+         :body {:cache-cleared true}})
+
       (GET "/accounts/:account-id/projects/:project-id" req
         (let [server (keyword (get-env-param req :server default-server))
               id (->int (get-param req :project-id nil))
