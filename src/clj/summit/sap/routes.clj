@@ -46,21 +46,28 @@
 (defn- get-order [customer server order-id]
   (order/order->json-api (order/order server order-id)))
 
-(def ^:private rfc-caches (atom {}))
-
-(defn- cache [fn-var & args]
-  (let [key args
-        result (@rfc-caches key)]
-    (if result
-      result
-      (let [result (apply fn-var args)]
-        (swap! rfc-caches assoc key result)
-        result))))
-;; (cache #'get-project :prd 3)
+(defonce ^:private rfc-caches (atom {}))
 
 (defn- clear-cache []
   (reset! rfc-caches {}))
 ;; (clear-cache)
+
+
+(defn- force-cache [& fn-var-and-args]
+  (println fn-var-and-args)
+  (let [key fn-var-and-args
+        result (apply (first fn-var-and-args) (rest fn-var-and-args))]
+    (swap! rfc-caches assoc key result)
+    result))
+;; (force-cache #'get-project :prd 3)
+
+(defn- cache [& fn-var-and-args]
+  (let [key fn-var-and-args
+        result (@rfc-caches key)]
+    (if result
+      result
+      (apply force-cache fn-var-and-args))))
+;; (cache #'get-project :prd 3)
 
 (defn debugged-body [m request debug-map]
   (let [body (or m {:errors ["not found"]})]
@@ -161,10 +168,8 @@
       (let [customer nil
             server (keyword (get-env-param req :server @default-server))
             id (->int (get-param req :id nil))
-            ;; id (->int (:id (:params req)))
-            ;; id 1
-            ;; proj (get-order customer server id)
-            order (cache #'get-order customer server id)
+            order (get-order customer server id)
+            ;; order (cache #'get-order customer server id)
             ]
         (json-api-response order
                            req
