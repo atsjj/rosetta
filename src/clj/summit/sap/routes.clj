@@ -49,23 +49,6 @@
 ;; (def job (set-interval-named :boo #(println "hey") 1000))
 ;; (future-cancel job)
 
-(defonce cron-jobs (atom {}))
-
-(def hourly-jobs
-  {:project3 #(force-cache #'get-project :prd 3)
-   })
-
-(defn start-cron-jobs []
-  (let [duration (* 60 60 1000)]
-    (for [[name job] hourly-jobs]
-      (swap! cron-jobs assoc name (set-interval-named name job duration))
-      )))
-
-(defn stop-cron-jobs []
-  (for [[name job] @cron-jobs]
-    (future-cancel job)
-    (swap! cron-jobs dissoc )))
-
 
 (defn gather-params [req]
   (merge
@@ -212,3 +195,23 @@
                            )
         )))
     ))
+
+
+
+(defonce cron-jobs (atom {}))
+
+(def hourly-jobs
+  {:project-id-3 #(force-cache #'get-project :prd 3)
+   })
+
+(defn start-cron-jobs []
+  (let [duration (* 60 60 1000)]
+    (for [[name job] hourly-jobs]
+      (swap! cron-jobs assoc name (set-interval-named name job duration))
+      )))
+
+(defn stop-cron-jobs []
+  (for [[name job] @cron-jobs]
+    (future-cancel job)
+    (swap! cron-jobs dissoc )))
+
