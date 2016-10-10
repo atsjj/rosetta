@@ -212,6 +212,10 @@
 
 (defn stop-cron-jobs []
   (for [[name job] @cron-jobs]
-    (future-cancel job)
-    (swap! cron-jobs dissoc )))
+    (do
+      (future-cancel job)
+      (swap! cron-jobs dissoc ))))
+
+(stop-cron-jobs)
+(start-cron-jobs)
 
