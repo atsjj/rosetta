@@ -9,6 +9,64 @@
 
 (def default-server (atom :prd))
 
+;; ----------------------  cache functions
+
+(defonce ^:private rfc-caches (atom {}))
+
+(defn- clear-cache []
+  (reset! rfc-caches {}))
+;; (clear-cache)
+
+(defn- force-cache [& fn-var-and-args]
+  (println fn-var-and-args)
+  (let [key fn-var-and-args
+        result (apply (first fn-var-and-args) (rest fn-var-and-args))]
+    (swap! rfc-caches assoc key result)
+    result))
+;; (force-cache #'get-project :prd 3)
+
+(defn- cache [& fn-var-and-args]
+  (let [key fn-var-and-args
+        result (@rfc-caches key)]
+    (if result
+      result
+      (apply force-cache fn-var-and-args))))
+;; (cache #'get-project :prd 3)
+
+;; ------------------------------- cron jobs
+
+(defn set-interval [callback ms]
+  (future (while true (do (Thread/sleep ms) (callback)))))
+
+(defn set-interval-named [name callback ms]
+  (set-interval (fn []
+                  (println "Processing cron-job " name)
+                  (callback))
+                ms))
+
+;; (def job (set-interval #(println "hey") 1000))
+;; (future-cancel job)
+;; (def job (set-interval-named :boo #(println "hey") 1000))
+;; (future-cancel job)
+
+(defonce cron-jobs (atom {}))
+
+(def hourly-jobs
+  {:project3 #(force-cache #'get-project :prd 3)
+   })
+
+(defn start-cron-jobs []
+  (let [duration (* 60 60 1000)]
+    (for [[name job] hourly-jobs]
+      (swap! cron-jobs assoc name (set-interval-named name job duration))
+      )))
+
+(defn stop-cron-jobs []
+  (for [[name job] @cron-jobs]
+    (future-cancel job)
+    (swap! cron-jobs dissoc )))
+
+
 (defn gather-params [req]
   (merge
    (:params req)
@@ -45,29 +103,6 @@
 
 (defn- get-order [customer server order-id]
   (order/order->json-api (order/order server order-id)))
-
-(defonce ^:private rfc-caches (atom {}))
-
-(defn- clear-cache []
-  (reset! rfc-caches {}))
-;; (clear-cache)
-
-
-(defn- force-cache [& fn-var-and-args]
-  (println fn-var-and-args)
-  (let [key fn-var-and-args
-        result (apply (first fn-var-and-args) (rest fn-var-and-args))]
-    (swap! rfc-caches assoc key result)
-    result))
-;; (force-cache #'get-project :prd 3)
-
-(defn- cache [& fn-var-and-args]
-  (let [key fn-var-and-args
-        result (@rfc-caches key)]
-    (if result
-      result
-      (apply force-cache fn-var-and-args))))
-;; (cache #'get-project :prd 3)
 
 (defn debugged-body [m request debug-map]
   (let [body (or m {:errors ["not found"]})]
