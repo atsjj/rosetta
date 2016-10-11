@@ -5,7 +5,9 @@
             [summit.sap.project :as project]
             [summit.sap.order :as order]
 
-            [summit.utils.core :as utils]))
+            [summit.utils.core :as utils]
+            [summit.sap.periodic :as periodic]
+            ))
 
 (def default-server (atom :prd))
 
@@ -33,27 +35,10 @@
       (apply force-cache fn-var-and-args))))
 ;; (cache #'get-project :prd 3)
 
-;; ------------------------------- cron jobs
-
-(defn set-interval [callback ms]
-  (future (while true (do (Thread/sleep ms) (callback)))))
-
-(defn set-interval-named [name callback ms]
-  (set-interval (fn []
-                  (println "Processing cron-job " name)
-                  (callback))
-                ms))
-
-;; (def job (set-interval #(println "hey") 1000))
-;; (future-cancel job)
-;; (def job (set-interval-named :boo #(println "hey") 1000))
-;; (future-cancel job)
-
 
 (defn gather-params [req]
   (merge
    (:params req)
-   ;; (:filter req)))    ;; to accomodate json-api
    (:filter (:params req))))    ;; to accomodate json-api
 
 (defn get-param
@@ -68,7 +53,7 @@
    ;;   ;; will be in filters for json-api
    ;;   (or (and filters (param filters)) (param params) default))))
 
-(defn get-keyword-param
+#_(defn get-keyword-param
   ([request param-name] (get-keyword-param request param-name nil))
   ([request param-name default]
    (keyword (get-param request param-name default))))
@@ -187,7 +172,6 @@
             server (keyword (get-env-param req :server @default-server))
             id (->int (get-param req :id nil))
             order (get-order customer server id)
-            ;; order (cache #'get-order customer server id)
             ]
         (json-api-response order
                            req
@@ -197,25 +181,13 @@
     ))
 
 
-
-(defonce cron-jobs (atom {}))
-
 (def hourly-jobs
-  {:project-id-3 #(force-cache #'get-project :prd 3)
+  {
+   ;; :example-hey #(println "hey")
+   :project-id-3 #(force-cache #'get-project :prd 3)
    })
 
-(defn start-cron-jobs []
-  (let [duration (* 60 60 1000)]
-    (for [[name job] hourly-jobs]
-      (swap! cron-jobs assoc name (set-interval-named name job duration))
-      )))
+(periodic/start-cron-jobs (* 60 60 1000) hourly-jobs)
+;; (periodic/stop-all-cron-jobs)
 
-(defn stop-cron-jobs []
-  (for [[name job] @cron-jobs]
-    (do
-      (future-cancel job)
-      (swap! cron-jobs dissoc ))))
-
-(stop-cron-jobs)
-(start-cron-jobs)
 
