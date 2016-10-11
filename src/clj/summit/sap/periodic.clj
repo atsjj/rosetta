@@ -1,11 +1,17 @@
 (ns summit.sap.periodic
-  ;; (:require [summit.sap.routes :as routes])
+  (:require [summit.utils.errors :as err])
   )
 
 ;; ------------------------------- cron jobs
 
-(defn set-interval [callback ms]
-  (future (while true (do (callback) (Thread/sleep ms)))))
+(defn set-interval [callback ms & msgs]
+  (future (while true
+            (try
+              (callback)
+              (catch Exception e
+                (err/handle-error e msgs))
+              )
+            (Thread/sleep ms))))
 
 (defn set-interval-named [name callback ms]
   (set-interval (fn []
