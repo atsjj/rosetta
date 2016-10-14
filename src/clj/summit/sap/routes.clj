@@ -2,7 +2,9 @@
   (:require [compojure.core :refer [defroutes GET routes wrap-routes context]]
 
             [summit.utils.core :refer [->int]]
+            [summit.sap.core :as erp]
             [summit.sap.project :as project]
+            [summit.sap.project2 :as project2]
             [summit.sap.order :as order]
 
             [summit.utils.core :as utils]
@@ -96,6 +98,27 @@
 (defroutes sap-routes-v2
   (context "/api" []
     (context "/:version-num" []
+
+      (GET "/describe/:func-name" req
+        (let [func-name (keyword (get-in req [:params :func-name]))]
+          {:status 200
+           :headers {"Content-Type" "text/json"}
+           :body (erp/function-interface (erp/find-function :qas func-name))}))
+
+      (GET "/projects2/:project-id" req
+        (let [server (keyword (get-env-param req :server @default-server))
+              id (->int (get-param req :project-id nil))
+              proj (project2/project server id)
+              ]
+          (json-api-response proj
+                             req
+                             {:server server :project-id id}
+                             )
+          ))
+
+
+
+
       (GET "/clear-cache" req
         (clear-cache)
         {:status 200
