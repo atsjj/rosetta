@@ -23,8 +23,9 @@
 
 (defonce cron-jobs (atom {}))
 
-(defn add-cron-job [name f duration]
-  (swap! cron-jobs assoc name (set-interval-named name f duration)))
+(defn start-cron-job [name f duration]
+  (when-not (@cron-jobs name)  ;; leave existing jobs untouched
+    (swap! cron-jobs assoc name (set-interval-named name f duration))))
 
 (defn stop-cron-job [name]
   (let [job-fn (@cron-jobs name)]
@@ -34,8 +35,7 @@
 
 (defn start-cron-jobs [duration named-jobs]
   (doseq [[name job-fn] named-jobs]
-    (when-not (@cron-jobs name)  ;; leave existing jobs untouched
-      (add-cron-job name job-fn duration))))
+    (start-cron-job name job-fn duration)))
 
 (defn stop-all-cron-jobs []
   (doseq [name (keys @cron-jobs)]

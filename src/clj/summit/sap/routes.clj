@@ -187,8 +187,8 @@
    :project-id-3 #(force-cache #'get-project :prd 3)
    })
 
+(periodic/stop-all-cron-jobs)
 (periodic/start-cron-jobs (* 1000) hourly-jobs)
 ;; (periodic/start-cron-jobs (* 60 60 1000) hourly-jobs)
-;; (periodic/stop-all-cron-jobs)
-
+;; (force-cache #'get-project :prd 3)
 
