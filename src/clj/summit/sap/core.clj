@@ -28,7 +28,7 @@
    :prod "prd"
    })
 
-(def ^:dynamic *sap-server* :qas)
+(def ^:dynamic *sap-server* :prd)
 
 (defmacro with-sap-server [server-keyword & body]
   `(binding [*sap-server* ~server-keyword]

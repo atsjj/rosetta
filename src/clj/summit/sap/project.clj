@@ -58,7 +58,7 @@
      }))
 
 (defn projects
-  ([account-num] (projects :qas account-num))
+  ([account-num] (projects :prd account-num))
   ([server account-num]
    (println "getting projects for accont number: " account-num " on server " server)
    (let [f (find-function server :Z_O_ZVSEMM_KUNAG_ASSOC_PROJ)]
@@ -388,7 +388,7 @@
 
 
 (defn project
-  ([project-id] (project :qas project-id))
+  ([project-id] (project :prd project-id))
   ([system project-id]
    (utils/ppn (str "getting project " project-id " on " system))
    (let [project-fn (find-function system :Z_O_ZVSEMM_PROJECT_CUBE)
