@@ -7,6 +7,7 @@
 
             [summit.utils.core :refer [examples ->str ->keyword ->int ppl]]
             [summit.sap.types :refer :all]
+            [summit.sap.conversions :refer :all]
             )
   (:import  [com.sap.conn.jco
              JCo
@@ -160,8 +161,8 @@
   (doall (map (fn [[k v]] (set-data (find-field f k) v)) m)))
 
 
-(defn table-field-names [fld]
-  (map #(.getName %) (.getTable fld)))
+;; (defn table-field-names [fld]              ;; defined above
+;;   (map #(.getName %) (.getTable fld)))
 
 (defn field-names [param-list]
   (map #(.getName %) param-list))
@@ -231,6 +232,29 @@
 
 (defn pull [f name & args]
   (apply get-data (find-field f name) args))
+
+(defn pull-with-schema [f name & args]
+  (let [fld (find-field f name)
+        names (map first (last (field-definition fld)))
+        vals (apply get-data fld args)
+        ]
+    {:schema (last (field-definition fld))
+     :names names
+     :data vals}
+    ))
+;; (pull (find-function :qas :z-o-zvsemm-project-cube) :et-status-lines)
+;; (def x (pull-with-schema (find-function :qas :z-o-zvsemm-project-cube) :et-status-lines))
+;; x
+;; (keys x)
+;; (:data x)
+
+(defn pull-with-schemas [f & names]
+  (into {}
+        (map
+         #(let [key (if (coll? %) (first %) %)
+                return-key (if (coll? %) (second %) %)]
+            [return-key (pull-with-schema f key)])
+         names)))
 
 (defn pull-map [f name & args]
   (let [fld (find-field f name)
@@ -305,19 +329,124 @@
 ;;    )
 ;;   )
 
+(defprotocol SapEntity
+  (val [this])
+  (definition [this])
+  )
+
+(extend com.sap.conn.jco.rt.AbapFunction
+  SapEntity
+  {:val (fn [this] 3)
+   :definition (fn [this] 4)
+   }
+  )
+
+(extend com.sap.conn.jco.rt.DefaultTable
+  SapEntity
+  {:val (fn [this] 3)
+   :definition (fn [this] 4)
+   }
+  )
+
+(extend com.sap.conn.jco.rt.DefaultParameterField
+  SapEntity
+  {:val (fn [this] 3)
+   :definition (fn [this] 4)
+   }
+  )
+
+
+(examples
+
+(def has-data-qas-avail (find-function :dev :z-isa-mat-availability))
+(def f (:function has-data-qas-avail))
+(.setValue (.getImportParameterList (:function has-data-qas-avail)) "MATNR" (as-matnr "33323"))
+(.execute (:function has-data-qas-avail) (:destination has-data-qas-avail))
+(def t (.getTable (.getTableParameterList (:function has-data-qas-avail)) "MAT_ATP"))
+
+(get-value f "MAT_ATP")
+(pull has-data-qas-avail "MAT_ATP")
+(pull-with-schema has-data-qas-avail "MAT_ATP")
+
+(type t)
+(.getFieldCount t)
+(.getNumColumns t)
+(.getNumRows t)
+(.hasField t "MATNR")
+(.getValue t "MATNR")
+(.getValue t (->str :matnr))
+(.isTable t)
+
+(.getType f)
+(.getType f 1)
+(.getTabLength f)
+(.getDescription f 1)
+(.indexOf f 1)
+
+(val (find-field dev-jarred-avail "MAT_ATP"))
+(definition (find-field dev-jarred-avail "MAT_ATP"))
+
+
+(def t (.getValue (.getImportParameterList (:function has-data-qas-avail)) "MATNR"))
+
+(.setValue (.getImportParameterList (:function has-data-qas-avail)) "MATNR" (as-matnr "33323"))
+(.execute (:function has-data-qas-avail) (:destination has-data-qas-avail))
+(.getValue f "MATNR")
+
+(get-data f)
+(get-table f :mat-atp [:matnr :werks :com-qty :name1])
+(get-table f :mat-atp [:matnr :werks :com-qty :name1])
+(get-table f :mat-atp (range 4))
+(get-table f :mat-atp nil)
+(count (get-table f :mat-atp [:matnr :werks :com-qty :name1]))
+
+
+)
+
+
+
 (examples
 
 
 
 (def dev-bapi-avail (find-function :dev :bapi-material-availability))
 (def qas-avail (find-function :default :z-isa-mat-availability))
-(def qas-avail (find-function :dev :z-isa-mat-availability))
+(def qas-avail (find-function :qas :z-isa-mat-availability))
 (def dev-jarred-avail (find-function :dev :z-o-material-availability))
+
+(find-field dev-jarred-avail "MAT_ATP")
 
 (find-field (:function dev-jarred-avail) "MAT_ATP")
 (find-field (:function dev-jarred-avail) "I_SERVICE_CENTER")
 (find-field (:function dev-jarred-avail) "IT_MATERIAL")
 (function-interface dev-jarred-avail)
+
+
+
+
+(function-interface (find-function :qas :z-o-zvsemm-project-cube))
+(:tables (function-interface (find-function :qas :z-o-zvsemm-project-cube)))
+(filter #(= :et-status-lines (first %)) (:tables (function-interface (find-function :qas :z-o-zvsemm-project-cube))))
+(first (filter #(= :et-status-lines (first %)) (:tables (function-interface (find-function :qas :z-o-zvsemm-project-cube)))))
+(nth (first (filter #(= :et-status-lines (first %)) (:tables (function-interface (find-function :qas :z-o-zvsemm-project-cube))))) 8)
+(map first (nth (first (filter #(= :et-status-lines (first %)) (:tables (function-interface (find-function :qas :z-o-zvsemm-project-cube))))) 8))
+(pull (find-function :qas :z-o-zvsemm-project-cube) :et-status-lines)
+(pull-with-schema (find-function :qas :z-o-zvsemm-project-cube) :et-status-lines)
+
+(:table (first (filter #(= :et-status-lines (first %)) (:tables (function-interface (find-function :qas :z-o-zvsemm-project-cube))))))
+(field-definitions (find-function :qas :z-o-zvsemm-project-cube))
+(field-definitions (find-field (:function (find-function :qas :z-o-zvsemm-project-cube)) "ET_STATUS_LINES"))
+(find-field (:function (find-function :qas :z-o-zvsemm-project-cube)) "ET_STATUS_LINES")
+(field-names (.getTableParameterList (:function (find-function :qas :z-o-zvsemm-project-cube))))
+(field-names ((.getTableParameterList (:function (find-function :qas :z-o-zvsemm-project-cube))) "ET_STATUS_LINES"))
+(find-field (.getTableParameterList (:function (find-function :qas :z-o-zvsemm-project-cube))) "ET_STATUS_LINES")
+(find-field (find-function :qas :z-o-zvsemm-project-cube) "ET_STATUS_LINES")
+(field-names (find-field (find-function :qas :z-o-zvsemm-project-cube) "ET_STATUS_LINES"))
+
+(get-field (:function (find-function :qas :z-o-zvsemm-project-cube)) :et-status-lines)
+(get-field (find-function :qas :z-o-zvsemm-project-cube) :et-status-lines)
+(get-field (find-function :qas :z-o-zvsemm-project-cube) "ET_STATUS_LINES")
+
 
 
 

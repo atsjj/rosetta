@@ -1,15 +1,20 @@
+(println "loading summit.sap.routes")
+
 (ns summit.sap.routes
   (:require [compojure.core :refer [defroutes GET routes wrap-routes context]]
 
             [summit.utils.core :refer [->int]]
             [summit.sap.core :as erp]
             [summit.sap.project :as project]
-            [summit.sap.project2 :as project2]
+            [summit.sap.spreadsheet :as spreadsheet]
+            ;; [summit.sap.project2 :as project2]
             [summit.sap.order :as order]
 
             [summit.utils.core :as utils]
             [summit.sap.periodic :as periodic]
-            ))
+
+            [clojure.string :as str]
+            [clojure.java.io :as io]))
 
 (def default-server (atom :prd))
 
@@ -28,6 +33,9 @@
     (swap! rfc-caches assoc key result)
     result))
 ;; (force-cache #'get-project :prd 3)
+;; (force-cache #'get-project :prd 322)
+;; (apply #'get-project '(:prd 323))
+;; (get-project :prd 324)
 
 (defn- cache [& fn-var-and-args]
   (let [key fn-var-and-args
@@ -36,6 +44,7 @@
       result
       (apply force-cache fn-var-and-args))))
 ;; (cache #'get-project :prd 3)
+;; (keys (cache #'get-project :prd 3))
 
 
 (defn gather-params [req]
@@ -67,6 +76,14 @@
 
 (defn- get-project [server project-id]
   (project/project server project-id))
+;; (get-project :qas 1)
+;; (get-project :qas 197)
+;; (cache #'get-project :qas 1)
+;; (cache #'get-project :qas 598)
+;; (cache #'get-project :qas 498)
+;; (keys (cache #'get-project :qas 1))
+;; (json-api-response (cache #'get-project :qas 1) {:x 3} {:y 4})
+;; (keys (json-api-response (cache #'get-project :qas 1) {:x 3} {:y 4}))
 
 (defn- get-projects [server account-num]
   (project/projects server account-num))
@@ -77,7 +94,8 @@
 (defn debugged-body [m request debug-map]
   (let [body (or m {:errors ["not found"]})]
     (if true
-      (merge body {:meta {:debug (merge debug-map {:request (utils/clean-request request)})}})
+      ;; (merge body {:meta {:debug (merge debug-map {:request (utils/clean-request request)})}})
+      body
       body
       )))
 
@@ -88,10 +106,12 @@
    (let [body (debugged-body m request debug-map)]
      (if (nil? m)
        {:status 404
-        :headers {"Content-Type" "application/vnd.api+json; charset=utf-8"}
+        ;; :headers {"Content-Type" "application/vnd.api+json; charset=utf-8"}
+        :headers {"Content-Type" "text/json; charset=utf-8"}
         :body body}
        {:status 200
         :headers {"Content-Type" "application/vnd.api+json; charset=utf-8"}
+        ;; :headers {"Content-Type" "text/json; charset=utf-8"}
         :body body}
        ))))
 
@@ -101,56 +121,55 @@
 
       (GET "/describe/:func-name" req
         (let [func-name (keyword (get-in req [:params :func-name]))]
-          {:status 200
+          {:status  200
            :headers {"Content-Type" "text/json"}
-           :body (erp/function-interface (erp/find-function :qas func-name))}))
+           :body    (erp/function-interface (erp/find-function :qas func-name))}))
 
-      (GET "/projects2/:project-id" req
-        (let [server (keyword (get-env-param req :server @default-server))
-              id (->int (get-param req :project-id nil))
-              proj (project2/project server id)
-              ]
-          (json-api-response proj
-                             req
-                             {:server server :project-id id}
-                             )
-          ))
+      ;; (GET "/projects2/:project-id" req
+      ;;   (let [server (keyword (get-env-param req :server @default-server))
+      ;;         id     (->int (get-param req :project-id nil))
+      ;;         proj   (project2/project server id)
+      ;;         ]
+      ;;     (json-api-response proj
+      ;;                        req
+      ;;                        {:server server :project-id id}
+      ;;                        )
+      ;;     ))
 
 
 
 
       (GET "/clear-cache" req
         (clear-cache)
-        {:status 200
+        {:status  200
          :headers {"Content-Type" "text/json"}
-         :body {:cache-cleared true}})
+         :body    {:cache-cleared true}})
 
       (GET "/default-server/:server-name" req
         (let [server-name (get-in req [:params :server-name])]
           (if (contains? #{"dev" "qas" "prd"} server-name)
             (do
               (reset! default-server (keyword server-name))
-              {:status 200
+              {:status  200
                :headers {"Content-Type" "text/json"}
-               :body {:new-server-name server-name}
+               :body    {:new-server-name server-name}
                })
-            {:status 400
+            {:status  400
              :headers {"Content-Type" "text/json"}
-             :body {:no-such-server server-name}
+             :body    {:no-such-server server-name}
              }
             )))
 
       (GET "/default-server" req
-        {:status 200
+        {:status  200
          :headers {"Content-Type" "text/json"}
-         :body {:server-name @default-server}
+         :body    {:server-name @default-server}
          })
 
       (GET "/accounts/:account-id/projects/:project-id" req
         (let [server (keyword (get-env-param req :server @default-server))
-              id (->int (get-param req :project-id nil))
-              ;; proj (get-project server id)
-              proj (cache #'get-project server id)
+              id     (->int (get-param req :project-id nil))
+              proj   (cache #'get-project server id)
               ]
           (json-api-response proj
                              req
@@ -158,50 +177,101 @@
                              )
           ))
 
-    (GET "/projects/:project-id" req
-      (let [server (keyword (get-env-param req :server @default-server))
-            id (->int (get-param req :project-id nil))
-            ;; proj (get-project server id)
-            proj (cache #'get-project server id)
-            ]
-        (json-api-response proj
-                           req
-                           {:server server :project-id id}
-                           )
-        ))
+      (GET "/project-raw/:project-id" req
+        (println "in /project-raw")
+        (let [server (keyword (get-env-param req :server @default-server))
+              id     (->int (get-param req :project-id nil))
+              proj   (project/project-raw-data server id)
+              ]
+          {:status 200
+           :headers {"Content-Type" "text/json; charset=utf-8"}
+           :body proj}
+          ))
 
-    (GET "/accounts/:account-id/projects" req
-      (let [server (keyword (get-env-param req :server @default-server))
-            account-num (get-param req :account-id nil)
-            projs (get-projects server account-num)]
-        (json-api-response projs
-                           req
-                           {:server server :account-num account-num}
-                           )
-        ))
+      (GET "/project-spreadsheet/:project-id" req
+        (println "in /project-spreadsheet")
+        (let [server (keyword (get-env-param req :server @default-server))
+              id     (->int (get-param req :project-id nil))
+              ;; proj   (project/project-spreadsheet-data server id)
+              proj   (project/fetch-status-lines server id)
+              filepath (spreadsheet/create-temp-spreadsheet "amps" "xlsx" (:headers proj) (:data proj))
+              filename (last (str/split filepath #"/"))
+              ;; file (spreadsheet/read-file filepath)
+              ]
+          {:status 200
+           ;; :headers {"Content-Type" "text/json; charset=utf-8"}
+           :headers {"Content-Type" spreadsheet/mime-spreadsheet
+                     ;; "text/json; charset=utf-8"
+                     ;; "Content-Disposition" (str "attachment; filename=\"" filename "\"")
+                     "Content-Disposition" (str "inline; filename=\"" filename "\"")
+                     ;; "Content-Length" (count file)
+                     }
+           :body (io/file filepath)}
+          ))
 
-    (GET "/projects" req
-      (let [server (keyword (get-env-param req :server @default-server))
-            account-num (get-param req :account nil)
-            projs (get-projects server account-num)]
-        (json-api-response projs
-                           req
-                           {:server server :account-num account-num}
-                           )
-        ))
+      (GET "/project-spreadsheet-data/:project-id" req
+        (println "in /project-spreadsheet-data")
+        (let [server (keyword (get-env-param req :server @default-server))
+              id     (->int (get-param req :project-id nil))
+              ;; proj   (project/project-spreadsheet-data server id)
+              proj   (project/fetch-status-lines server id)
+              ]
+          {:status 200
+           :headers {"Content-Type" "text/json; charset=utf-8"}
+           :body proj}
+          ))
 
-    (GET "/orders/:id" req
-      (let [customer nil
-            server (keyword (get-env-param req :server @default-server))
-            id (->int (get-param req :id nil))
-            order (get-order customer server id)
-            ]
-        (json-api-response order
-                           req
-                           {:server server :customer customer :order-id id}
-                           )
-        )))
-    ))
+      (GET "/projects/:project-id" req
+           (println "in /projects/:project-id")
+        (let [server (keyword (get-env-param req :server @default-server))
+              id     (->int (get-param req :project-id nil))
+              ;; proj (get-project server id)
+              proj   (cache #'get-project server id)
+              ]
+          ;; {:status 200
+          ;;  :headers {"Content-Type" "application/json; charset=utf-8"}
+          ;;  ;; :body proj
+          ;;  :body {:a 3}
+          ;;  }
+          (json-api-response proj
+          ;; (json-api-response {:a 4}  ;;proj
+                             req
+                             {:server server :project-id id}
+                             )
+          ))
+
+      (GET "/accounts/:account-id/projects" req
+        (let [server      (keyword (get-env-param req :server @default-server))
+              account-num (get-param req :account-id nil)
+              projs       (get-projects server account-num)]
+          (json-api-response projs
+                             req
+                             {:server server :account-num account-num}
+                             )
+          ))
+
+      (GET "/projects" req
+        (let [server      (keyword (get-env-param req :server @default-server))
+              account-num (get-param req :account nil)
+              projs       (get-projects server account-num)]
+          (json-api-response projs
+                             req
+                             {:server server :account-num account-num}
+                             )
+          ))
+
+      (GET "/orders/:id" req
+        (let [customer nil
+              server   (keyword (get-env-param req :server @default-server))
+              id       (->int (get-param req :id nil))
+              order    (get-order customer server id)
+              ]
+          (json-api-response order
+                             req
+                             {:server server :customer customer :order-id id}
+                             )
+          ))
+      )))
 
 
 (def hourly-jobs
@@ -210,8 +280,19 @@
    :project-id-3 #(force-cache #'get-project :prd 3)
    })
 
+
+;; bapi for retrieving a project does not return the owning account number.
+;; therefore when we retrieve the projects for an account number, we cache the
+;; linkage between account number and projects (and the name, since it is not
+;; available either).
+;; but that means the projects bapi must be called first.
+;; the call below is made to ensure we have the info on bootup.
+(if (nil? (project/project-account-num 3))
+  (project/projects :prd 1037657))
+
 (periodic/stop-all-cron-jobs)
-(periodic/start-cron-jobs (* 1000) hourly-jobs)
-;; (periodic/start-cron-jobs (* 60 60 1000) hourly-jobs)
+;; (periodic/start-cron-jobs (* 1000) hourly-jobs)
+(periodic/start-cron-jobs (* 1000 60 60) hourly-jobs)
 ;; (force-cache #'get-project :prd 3)
 
+(println "done loading summit.sap.routes")

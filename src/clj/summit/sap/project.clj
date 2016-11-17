@@ -1,23 +1,160 @@
 (println "loading summit.sap.project")
 
 (ns summit.sap.project
-  (:require [summit.sap.core :refer :all]
+  (:require [summit.sap.core :refer :all :as erp]
             [clojure.string :as str]
             [summit.utils.core :as utils :refer [->int examples]]
-            [summit.sap.conversions :as conv]))
+            [summit.sap.conversions :as conv]
+            ;; [summit.sap.project :as project]
+            ))
 
 ;; ----------------------------------
 ;;     All projects for an account
 
+
+
+
+
+;;;    really want to "correct" schema, not end up with just the col names.
+
+
+(defrecord schema-store [schemas])
+(defrecord store [schema-store data])
+(defrecord persistence [create-fn read-fn update-fn delete-fn])
+
+(defrecord schema-def [definitions])
+(defrecord store-schema [store schema])
+(defrecord record-def [schema definitions])
+;; (defrecord record-def [schema definitions])
+(defrecord struct-def [schema definitions])
+(defrecord field-def  [schema key display-name descript type len sublen default])
+
+(defrecord entity [field data])
+
+;; database terminology (wikipedia, Database_schema):
+;;   table field relationship view index package procedure function queue trigger type sequence materialized-view synonym database-link directory xml-schema
+
+
+
 (def ^:private et-project-fields [:client :id :sold-to :name :title :start-date :end-date :service-center-code :status :last-modifier :modified-on])
+
+;; cached during call to projects (plural)
 (def ^:private cached-projects (atom {}))
-(defn- project-name [id]
+(defn project-name [id]
   (:name (@cached-projects id)))
-(defn- project-account-num [id]
+;; @cached-projects
+
+(defn project-account-num [id]
   (:account-num (@cached-projects id)))
 
-(defn- transform-triplets [m attr-defs]
-  (let [attr-defs (partition 3 attr-defs)]
+;; cached during call to project (singular)
+;; (def ^:private cached-raw-projects (atom {}))
+(def ^:private project-json-cache (atom {}))
+(def ^:private project-status-lines-cache (atom {}))
+
+;; (defn- cache-raw-project [f system project-id]
+;;   (let [maps (pull-project-maps f)]
+;;     (swap! cached-raw-projects assoc [system project-id] maps)
+;;     maps))
+
+(def extractions
+  {:order-info [;; :id (swap! id-seq-num inc)
+                :project-id :projid ->int "Project ID"
+                :order-num :vbeln-va ->int "Order #"
+                :drawing-num :bstkd identity "Drawing #"
+                ;; ])]
+                ]
+   :line-item  [:item-num :posnr-va ->int "Item #"
+                :matnr :matnr ->int "Mat #"
+                :customer-matnr :kdmat identity "Cust Mat #"
+                :descript :arktx identity "Description"
+                :circuit-id :circ-id identity "Circuit ID"
+                :requested-qty :kwmeng double "Requested Quantity"
+                :delivered-qty :lfimg double "Delivered Quantity"
+                :picked-qty :picked double "Picked Quantity"
+                :total-goods-issue-qty :tot-gi-qty double "Total Goods Issue Quantity"
+                :remaining-qty :remaining double "Remaining Quantity"  ;; still to be delivered
+                :reserved-qty :resv-qty double "Reserved Quantity"
+                :uom :vrkme identity "UOM"
+                :inventory-loc :inv-loc identity "Inventory Loc"
+                :storage-loc :lgort identity "Storage Loc"
+                :service-center :werks identity "Service Center"
+                :trailer-atp :cust-loc-atp double "Trailer ATP"
+                :service-center-atp :main-loc-atp double "Service Center ATP"
+                :schedule-date :edatu identity "Schedule Date"
+                :expected-date :bstdk identity "Expected Date"
+                :entered-date :audat identity "Entered Date"
+                ]
+   :delivery   [:delivery :vbeln-vl identity "Delivery"
+                :delivery-item-num :posnr-vl identity "Delivery Item #"]})
+
+(defn- fetch-project-json [system project-id]
+  (@project-json-cache [system project-id]))
+(defn- cache-project-json [system project-id maps]
+  (swap! project-json-cache assoc [system project-id] maps))
+
+(defn fetch-status-lines [system project-id]
+  (@project-status-lines-cache [system project-id]))
+(defn- cache-status-lines [system project-id status-lines]
+  (swap! project-status-lines-cache assoc [system project-id]
+         (merge {:account-num (project-account-num project-id)
+                 :project-id project-id
+                 :project-name (project-name project-id)}
+                status-lines)))
+
+
+(defn- raw-project-data [f]
+  (pull-with-schemas f
+                     [:et-status-lines :status-lines]
+                     [:et-vbak-atts :order-attr-defs]
+                     [:et-vbap-atts :line-item-attr-defs]
+                     [:et-likp-atts :delivery-attr-defs]
+                     ))
+;; (raw-project-data y)
+
+(defn- static-project-col-names
+  "additional attributes will retain their german funky names"
+  [status-lines]
+  (let [;; bad-names status-line-col-names-static
+        ;; status-lines (pull )
+        bad-names (:names status-lines)
+        good-names
+        (into {}
+              (map (fn [x] [(second x) (nth x 3)])
+                   (partition 4 (concat (:order-info extractions) (:line-item extractions) (:delivery extractions)))))
+        ]
+    (map #(if-let [n (% good-names)] n %) bad-names)))
+;; (static-project-col-names (pull-with-schema (find-function :qas :z-o-zvsemm-project-cube) :et-status-lines))
+
+
+(defn- attr-name-conv [key-prefix defs]
+  (let [append #(str %2 %1)
+        def-hash (into {} (map (fn [def] [(-> def (nth 2) (str/split #"_") last (append key-prefix) keyword) (nth def 3)]) defs))]
+    def-hash))
+;; (attr-name-conv "zz-zvsemm-vbap-attr-" (:data (:line-item-attr-defs (raw-project-data y))))
+
+(defn- project-col-names
+  "proper names for all status line columns, including additional attributes"
+  [raw-data]
+  (let [colnames (static-project-col-names (:status-lines raw-data))
+        order-conversions (attr-name-conv "zz-zvsemm-vbak-attr-" (:data (:order-attr-defs raw-data)))
+        item-conversions (attr-name-conv "zz-zvsemm-vbap-attr-" (:data (:line-item-attr-defs raw-data)))
+        delivery-conversions (attr-name-conv "zz-zvsemm-likp-attr-" (:data (:delivery-attr-defs raw-data)))
+        attr-conversions (merge order-conversions item-conversions delivery-conversions)]
+    (map #(if (keyword? %)
+            (if-let [v (% attr-conversions)]
+              v
+              "")
+            %)
+         colnames)
+    ))
+;; (def y (execute-project-query :qas 1))
+;; (project-col-names (raw-project-data y))
+
+
+
+(defn- transform-quartets [m attr-defs]
+  (let [attr-defs (partition 4 attr-defs)]
     (into {}
           (for [attr-def attr-defs]
             (let [web-name (first attr-def)  sap-name (second attr-def)  name-transform-fn (nth attr-def 2)]
@@ -60,7 +197,7 @@
 (defn projects
   ([account-num] (projects :prd account-num))
   ([server account-num]
-   (println "getting projects for accont number: " account-num " on server " server)
+   (println "getting projects for account number: " account-num " on server " server)
    (let [f (find-function server :Z_O_ZVSEMM_KUNAG_ASSOC_PROJ)]
      (push f {:i_kunag (conv/as-document-num-str account-num)})
      (execute f)
@@ -110,35 +247,12 @@
 ;; (ppn (process-message-lists (pull-map projects-fn :et-message-list)))
 ;; ((process-message-lists (pull-map projects-fn :et-message-list)) 16811)
 
-(def extractions
-  {:order-info [;; :id (swap! id-seq-num inc)
-                :project-id :projid ->int
-                :order-num :vbeln-va ->int
-                :drawing-num :bstkd identity
-                ;; ])]
-]
-   :line-item  [:item-num :posnr-va ->int
-                :matnr :matnr ->int
-                :customer-matnr :kdmat identity
-                :descript :arktx identity
-                :circuit-id :circ-id identity
-                :requested-qty :kwmeng double
-                :delivered-qty :lfimg double
-                :picked-qty :picked double
-                :total-goods-issue-qty :tot-gi-qty double
-                :remaining-qty :remaining double  ;; still to be delivered
-                :reserved-qty :resv-qty double
-                :uom :vrkme identity
-                :inventory-loc :inv-loc identity
-                :storage-loc :lgort identity
-                :service-center :werks identity
-                :trailer-atp :cust-loc-atp double
-                :service-center-atp :main-loc-atp double
-                :schedule-date :edatu identity
-                :expected-date :bstdk identity
-                :entered-date :audat identity
-                ]
-   :delivery   [:delivery :vbeln-vl identity]})
+(defn- status-line-col-names []
+  ;; (map first
+       (concat (:order-info extractions) (:line-item extractions) (:delivery extractions))
+       ;; )
+  )
+;; (status-line-col-names)
 
 (defn- line-item-id [m]
   (str (-> m :order :order-num) "-" (-> m :line-item :item-num)))
@@ -156,9 +270,9 @@
        (extract-attr-vals m begin-str (inc index) (conj v [(keyword (str "attr-" index)) val]))))))
 
 (defn transform-status-line [m]
-  {:order (transform-triplets m (:order-info extractions))
-   :line-item (transform-triplets m (:line-item extractions))
-   :delivery (transform-triplets m (:delivery extractions))
+  {:order (transform-quartets m (:order-info extractions))
+   :line-item (transform-quartets m (:line-item extractions))
+   :delivery (transform-quartets m (:delivery extractions))
    :order-attr-vals (extract-attr-vals m "zz-zvsemm-vbak-attr-")
    :line-item-attr-vals (extract-attr-vals m "zz-zvsemm-vbap-attr-")
    :delivery-attr-vals (extract-attr-vals m "zz-zvsemm-likp-attr-")
@@ -169,7 +283,7 @@
   (let [lines (map transform-status-line m)]
     lines))
 
-(defn retrieve-project-maps [project-fn]
+(defn pull-project-json-api-maps [project-fn]
   (let [attr-defs (partition 3
                              [:status-lines :et-status-lines transform-status-lines
                               :messages :et-message-list transform-message-lists
@@ -332,44 +446,146 @@
    (utils/collect-by #(-> % :line-item :circuit-id) #(-> % :order :order-num) status-lines)
    ""))
 
-(defn transform-project [project-id project-fn]
-  (let [maps (retrieve-project-maps project-fn)]
-    (let [status-lines (:status-lines maps)
-          order-ids (set (map #(-> % :order :order-num) status-lines))
-          items (extract-line-items status-lines)
-          orders (extract-orders status-lines)
-          deliveries (extract-deliveries status-lines)
-          drawings (extract-drawings status-lines)
-          circuits (extract-circuits status-lines)
-          json-orders (set (map (fn [id] {:type :project-order :id id}) order-ids))]
-      {:data
-       {:type :project
-        :id project-id
-        :attributes {:project-order-attributes (attrize (:order-attr-defs maps))
-                     :project-line-item-attributes (attrize (:line-item-attr-defs maps))
-                     :project-delivery-attributes (attrize (:delivery-attr-defs maps))}
-        :relationships {:project-orders {:data json-orders}
-                        :drawings {:data
-                                   (for [[id _] drawings]
-                                     {:type :drawing :id id})}
-                        :circuits {:data
-                                   (for [[id _] circuits]
-                                     {:type :circuit :id id})}}}
-       :included
-       (concat orders items deliveries
-               (drawings->json-api project-id drawings)
-               (circuits->json-api project-id circuits))
-       ;; :raw maps
-       })))
+(defn transform-project [project-id maps]
+  (let [status-lines (:status-lines maps)
+        order-ids    (set (map #(-> % :order :order-num) status-lines))
+        items        (extract-line-items status-lines)
+        orders       (extract-orders status-lines)
+        deliveries   (extract-deliveries status-lines)
+        drawings     (extract-drawings status-lines)
+        circuits     (extract-circuits status-lines)
+        json-orders  (set (map (fn [id] {:type :project-order :id id}) order-ids))]
+    {:data
+     {:type          :project
+      :id            project-id
+      :attributes    {:project-order-attributes     (attrize (:order-attr-defs maps))
+                      :project-line-item-attributes (attrize (:line-item-attr-defs maps))
+                      :project-delivery-attributes  (attrize (:delivery-attr-defs maps))}
+      :relationships {:project-orders {:data json-orders}
+                      :drawings       {:data
+                                       (for [[id _] drawings]
+                                         {:type :drawing :id id})}
+                      :circuits       {:data
+                                       (for [[id _] circuits]
+                                         {:type :circuit :id id})}}}
+     :included
+     (concat orders items deliveries
+             (drawings->json-api project-id drawings)
+             (circuits->json-api project-id circuits))
+     ;; :raw maps
+     }))
 
-(defn- get-project [system project-id]
-  (let [project-fn (find-function system :Z_O_ZVSEMM_PROJECT_CUBE)
-        ;; id-seq-num (atom 0)
+;; (defn- get-project-schema-force [system project-id]
+;;   (let [project-fn (find-function system :Z_O_ZVSEMM_PROJECT_CUBE)]
+;;     (push project-fn {:i-proj-id (conv/as-document-num-str project-id)})
+;;     (execute project-fn)
+;;     (pull-with-schema project-fn :et-status-lines)))
+;;     ;; (let [maps (pull-project-maps project-fn)]
+;;     ;;   (swap! cached-raw-projects assoc [system project-id] maps)
+;;     ;;   maps)))
+;; ;; (get-project-schema-force :qas 1)
+
+;; (defn- combine-line [line]
+;;   (let [l (atom (merge (:order line) (:line-item line) (:delivery line)))]
+;;     @l))
+
+(defn- pull-status-lines [f]
+  (let [;; p (pull-with-schema f :et-status-lines)
+        p (pull f :et-status-lines)
+        ;; lines (:status-lines p)
+        ;; order-attr-defs (:order-attr-defs p)
+        ;; line-attr-defs (:line-item-attr-defs p)
+        ;; delivery-attr-defs (:delivery-attr-defs p)
+        ;; order-attrs (map :title order-attr-defs)
+        ;; line-attrs (map :title line-attr-defs)
+        ;; delivery-attrs (map :title delivery-attr-defs)
         ]
+    ;; (map combine-line p)
+    p
+    ;; {:attrs 3
+    ;;  :orig p}
+    ))
+
+
+;; (pull-status-lines y)
+
+;; (def y (execute-project-query :qas 1))
+;; (keys y)
+;; (pull y :et-status-lines)
+;; (:schema (pull-with-schema y :et-status-lines))
+;; (:names (pull-with-schema y :et-status-lines))
+;; (:schema (pull-with-schema y :et-vbak-atts)) ;; order
+;; (:data (pull-with-schema y :et-vbak-atts)) ;; order
+;; (:names (pull-with-schema y :et-vbak-atts)) ;; order
+;; (:names (pull-with-schema y :et-vbap-atts)) ;; line item
+;; (:names (pull-with-schema y :et-likp-atts)) ;; delivery
+
+
+
+
+
+;; (transform-status-line )
+
+;; (:mandt :proj-id :attr-assign :attr-title :attr-len :attr-req :attr-conv)
+;; (:mandt :proj-id :attr-assign :attr-title :attr-len :attr-req :attr-conv :attr-batch-only)
+;; (:mandt :proj-id :attr-assign :attr-title :attr-len :attr-req :attr-conv)
+
+;; (defn project-spreadsheet-data [system project-id]
+;;   (get-project-schema-force system project-id))
+
+(defn- execute-project-query [system project-id]
+  (let [project-fn (find-function system :Z_O_ZVSEMM_PROJECT_CUBE)]
     (push project-fn {:i-proj-id (conv/as-document-num-str project-id)})
     (execute project-fn)
-    (retrieve-project-maps project-fn)
+    project-fn))
+
+(defn- get-project [system project-id]
+  (let [f (execute-project-query system project-id)
+        raw-data (raw-project-data f)   ;; this is schema + vector data, not maps
+        status-lines {:headers (project-col-names raw-data)
+                      :data (-> raw-data :status-lines :data)}
+        maps (pull-project-json-api-maps f)]
+    (cache-status-lines system project-id status-lines)
+    (cache-project-json system project-id maps)
+    ;; status-lines
+    maps
     ))
+
+;; (cache-raw-project project-fn system project-id)
+
+;; (defn- get-project [system project-id]
+;;   (let [key [system project-id]
+;;         p (@cached-raw-projects key)]
+;;     (if p
+;;       p
+;;       (get-project-force system project-id))))
+
+;; todo: delete these? it is used in routes.clj
+(defn project-raw-data [system project-id]
+  )
+(defn project-spreadsheet-data [system project-id]
+  )
+;; (defn project-raw-data [system project-id]
+;;   (@cached-raw-projects [system project-id]))
+
+  ;; (let [p (project-raw-data system project-id)
+  ;;       lines (:status-lines p)
+  ;;       order-attr-defs (:order-attr-defs p)
+  ;;       line-attr-defs (:line-item-attr-defs p)
+  ;;       delivery-attr-defs (:delivery-attr-defs p)
+  ;;       order-attrs (map :title order-attr-defs)
+  ;;       line-attrs (map :title line-attr-defs)
+  ;;       delivery-attrs (map :title delivery-attr-defs)]
+  ;;   (pull-with-schema )
+  ;;   (map combine-line lines)
+  ;;   ;; {:attrs 3
+  ;;   ;;  :orig p}
+  ;;   ))
+
+;; (keys @cached-raw-projects)
+;; (-> @cached-raw-projects first second keys)
+;; (-> @cached-raw-projects first second :status-lines first keys)
+;; (-> @cached-raw-projects first second :status-lines first :order keys)
 
 (defn- normalize-project [maps]
   )
@@ -391,25 +607,32 @@
   ([project-id] (project :prd project-id))
   ([system project-id]
    (utils/ppn (str "getting project " project-id " on " system))
-   (let [project-fn (find-function system :Z_O_ZVSEMM_PROJECT_CUBE)
-         id-seq-num (atom 0)]
-     (push project-fn {:i-proj-id (conv/as-document-num-str project-id)})
-     (execute project-fn)
-     (let [result (transform-project project-id project-fn)]
-       (when result
-         (->
-          result
-          (assoc-in
-           [:data :id] project-id)
-          (assoc-in
-           [:data :name] (project-name project-id))
-          (assoc-in
-           [:data :relationships :account]
-           {:data {:type "account" :id (project-account-num project-id)}})))))))
+   (transform-project project-id
+                      (if-let [p (fetch-project-json system project-id)]
+                        p
+                        (get-project system project-id)))))
+
+   ;; (let [project-fn (find-function system :Z_O_ZVSEMM_PROJECT_CUBE)
+   ;;       id-seq-num (atom 0)]
+   ;;   (push project-fn {:i-proj-id (conv/as-document-num-str project-id)})
+   ;;   (execute project-fn)
+   ;;   (let [raw-result (get-project system project-id)
+   ;;         result (transform-project project-id raw-result)]
+   ;;     (when result
+   ;;       (->
+   ;;        result
+   ;;        (assoc-in
+   ;;         [:data :id] project-id)
+   ;;        (assoc-in
+   ;;         [:data :name] (project-name project-id))
+   ;;        (assoc-in
+   ;;         [:data :relationships :account]
+   ;;         {:data {:type "account" :id (project-account-num project-id)}})))))))
 (examples
  (project :qas 1)
- (project 2)
- (projects 1002225)
+ (get-project :qas 1)
+ (get-project :prd 3)
+ (projects :qas 1002225)
  )
 
 ;; (def p1 (project :qas 1))
