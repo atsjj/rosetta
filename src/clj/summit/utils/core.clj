@@ -30,12 +30,9 @@
 (defn ->int [v]
   (if (nil? v)
     nil
-    (if (string? v)
-      (let [v (str/trim v)]
-        (if (empty? v)
-          nil
-          (-> v Double/parseDouble int)))
-      (int v))))
+    (if (empty? v)
+      nil
+      (-> v Double/parseDouble long))))
 
 (defn ->float [v]
   (if (nil? v)
