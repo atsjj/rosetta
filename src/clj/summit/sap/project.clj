@@ -42,27 +42,20 @@
 (def ^:private cached-projects (atom {}))
 (defn project-name [id]
   (:name (@cached-projects id)))
-;; @cached-projects
 
 (defn project-account-num [id]
   (:account-num (@cached-projects id)))
+;; (project-account-num 3)
 
 ;; cached during call to project (singular)
-;; (def ^:private cached-raw-projects (atom {}))
 (def ^:private project-json-cache (atom {}))
 (def ^:private project-status-lines-cache (atom {}))
-
-;; (defn- cache-raw-project [f system project-id]
-;;   (let [maps (pull-project-maps f)]
-;;     (swap! cached-raw-projects assoc [system project-id] maps)
-;;     maps))
 
 (def extractions
   {:order-info [;; :id (swap! id-seq-num inc)
                 :project-id :projid ->int "Project ID"
                 :order-num :vbeln-va ->int "Order #"
                 :drawing-num :bstkd identity "Drawing #"
-                ;; ])]
                 ]
    :line-item  [:item-num :posnr-va ->int "Item #"
                 :matnr :matnr ->int "Mat #"
@@ -95,13 +88,25 @@
 
 (defn fetch-status-lines [system project-id]
   (@project-status-lines-cache [system project-id]))
-(defn- cache-status-lines [system project-id status-lines]
-  (swap! project-status-lines-cache assoc [system project-id]
-         (merge {:account-num (project-account-num project-id)
-                 :project-id project-id
-                 :project-name (project-name project-id)}
-                status-lines)))
-
+(defn- cache-status-lines
+  "cache status lines. used for spreadsheet data"
+  [system project-id status-lines]
+  (let [headers (:headers status-lines)
+        data (:data status-lines)
+        good-cols (remove nil?
+                          (map-indexed (fn [i name] (if (empty? name) nil i)) headers))
+        f (fn [col-data] (map #(get col-data %) good-cols))
+        h (f (vec headers))
+        d (map #(f (vec %)) data)
+        status-lines {:headers h :data d}
+        ]
+    (swap! project-status-lines-cache assoc [system project-id]
+           (merge {:account-num (project-account-num project-id)
+                   :project-id project-id
+                   :project-name (project-name project-id)}
+                  status-lines))))
+;; (get-project :prd 3)
+;; (get-project :qas 1)
 
 (defn- raw-project-data [f]
   (pull-with-schemas f
@@ -115,9 +120,7 @@
 (defn- static-project-col-names
   "additional attributes will retain their german funky names"
   [status-lines]
-  (let [;; bad-names status-line-col-names-static
-        ;; status-lines (pull )
-        bad-names (:names status-lines)
+  (let [bad-names (:names status-lines)
         good-names
         (into {}
               (map (fn [x] [(second x) (nth x 3)])
@@ -462,12 +465,15 @@
                       :project-line-item-attributes (attrize (:line-item-attr-defs maps))
                       :project-delivery-attributes  (attrize (:delivery-attr-defs maps))}
       :relationships {:project-orders {:data json-orders}
+                      ;; TODO: could there be duplicates here? If so, put the drawing nums into a set first
                       :drawings       {:data
                                        (for [[id _] drawings]
                                          {:type :drawing :id id})}
                       :circuits       {:data
                                        (for [[id _] circuits]
-                                         {:type :circuit :id id})}}}
+                                         {:type :circuit :id id})}
+                      :accounts       {:data
+                                       {:type "account" :id (project-account-num project-id)}}}}
      :included
      (concat orders items deliveries
              (drawings->json-api project-id drawings)
@@ -539,7 +545,9 @@
     (execute project-fn)
     project-fn))
 
-(defn- get-project [system project-id]
+(defn- get-project
+  "get project data from sap and cache for spreadsheet and project"
+  [system project-id]
   (let [f (execute-project-query system project-id)
         raw-data (raw-project-data f)   ;; this is schema + vector data, not maps
         status-lines {:headers (project-col-names raw-data)
@@ -560,7 +568,7 @@
 ;;       p
 ;;       (get-project-force system project-id))))
 
-;; todo: delete these? it is used in routes.clj
+;; TODO: delete these? they are used in routes.clj
 (defn project-raw-data [system project-id]
   )
 (defn project-spreadsheet-data [system project-id]
@@ -601,38 +609,27 @@
 
 
 
+(defn ensure-project
+  "return project. retrieve if not already cached"
+  [system project-id]
+  (if-let [p (fetch-project-json system project-id)]
+    p
+    (get-project system project-id)))
 
 
 (defn project
   ([project-id] (project :prd project-id))
   ([system project-id]
    (utils/ppn (str "getting project " project-id " on " system))
-   (transform-project project-id
-                      (if-let [p (fetch-project-json system project-id)]
-                        p
-                        (get-project system project-id)))))
-
-   ;; (let [project-fn (find-function system :Z_O_ZVSEMM_PROJECT_CUBE)
-   ;;       id-seq-num (atom 0)]
-   ;;   (push project-fn {:i-proj-id (conv/as-document-num-str project-id)})
-   ;;   (execute project-fn)
-   ;;   (let [raw-result (get-project system project-id)
-   ;;         result (transform-project project-id raw-result)]
-   ;;     (when result
-   ;;       (->
-   ;;        result
-   ;;        (assoc-in
-   ;;         [:data :id] project-id)
-   ;;        (assoc-in
-   ;;         [:data :name] (project-name project-id))
-   ;;        (assoc-in
-   ;;         [:data :relationships :account]
-   ;;         {:data {:type "account" :id (project-account-num project-id)}})))))))
+   (transform-project project-id (ensure-project system project-id)
+                      )))
 (examples
  (project :qas 1)
+ (project :prd 3)
  (get-project :qas 1)
  (get-project :prd 3)
  (projects :qas 1002225)
+ (projects :prd 1037657)
  )
 
 ;; (def p1 (project :qas 1))
