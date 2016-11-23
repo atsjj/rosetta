@@ -8,6 +8,10 @@
             ;; [summit.sap.project :as project]
             ))
 
+(defn date->str [date]
+  (last (clojure.string/split (print-str date) #"\"")))
+;; (date->str (java.util.Date.))
+
 ;; ----------------------------------
 ;;     All projects for an account
 
@@ -268,10 +272,10 @@
   ([m begin-str] (extract-attr-vals m begin-str 1 {}))
   ([m begin-str index v]
    (let [key (keyword (str begin-str index))
-         val (key m)]
-     (if (nil? val)
+         value (key m)]
+     (if (nil? value)
        v
-       (extract-attr-vals m begin-str (inc index) (conj v [(keyword (str "attr-" index)) val]))))))
+       (extract-attr-vals m begin-str (inc index) (conj v [(keyword (str "attr-" index)) value]))))))
 
 (defn transform-status-line [m]
   {:order (transform-quartets m (:order-info extractions))
@@ -306,21 +310,24 @@
     (assoc
      (clojure.set/rename-keys order {:order-num :id})
      :line-item-id (line-item-id m)
+     :available-at (-> m :line-item :available-at)
      :circuit-id (-> m :line-item :circuit-id)
      :attrs (:order-attr-vals m))))
 
 (defn- merge-order [orders order]
   (let [line-item-ids (apply conj [] (map :line-item-id orders))
+        available-ats (apply conj [] (map :available-at orders))
+        available-ats (map date->str available-ats)
         circuit-ids (apply conj [] (map :circuit-id orders))]
     (merge
      order
      {:line-item-ids (-> line-item-ids set sort)
+      :max-available-at (-> available-ats sort last)
       :circuit-ids (disj (set circuit-ids) "")
       :attributes (:attrs (first orders))})))
-;; (disj (-> #{"" "as"} ) "")
 
 (defn- join-like-orders [orders]
-  (let [unique-orders (set (map #(dissoc % :line-item-id :circuit-id :attrs) orders))]
+  (let [unique-orders (set (map #(dissoc % :line-item-id :available-at :circuit-id :attrs) orders))]
     (map #(merge-order (collect-same orders (:id %)) %) unique-orders)
     ))
 
@@ -332,6 +339,7 @@
         proj-order-id (str project-id "-" order-id)]
     {:type :project-order
      :id order-id
+     ;; :max-available-at (:max-available-at order)
      :attributes (dissoc order :id :project-id :line-item-ids :circuit-ids)
      :relationships {:order
                      {:links
@@ -629,10 +637,13 @@
  (project :prd 3)
  (get-project :qas 1)
  (get-project :prd 3)
+ (println "hey")
  (projects :qas 1002225)
  (projects :prd 1037657)
+ (java.text.SimpleDateFormat. "YYY-MM-ddTHH:mm:ss")
+ (java.util.Date.)
+ (def x (print-str (java.util.Date.)))
  )
-
 ;; (def p1 (project :qas 1))
 ;; (keys (-> p1 :data))
 ;; (keys (-> p1 :data :attributes))
