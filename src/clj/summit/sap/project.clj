@@ -56,6 +56,7 @@
                 :project-id :projid ->int "Project ID"
                 :order-num :vbeln-va ->int "Order #"
                 :drawing-num :bstkd identity "Drawing #"
+                :expected-at :bstdk identity "Expected Date"
                 ]
    :line-item  [:item-num :posnr-va ->int "Item #"
                 :matnr :matnr ->int "Mat #"
@@ -74,9 +75,9 @@
                 :service-center :werks identity "Service Center"
                 :trailer-atp :cust-loc-atp double "Trailer ATP"
                 :service-center-atp :main-loc-atp double "Service Center ATP"
-                :schedule-date :edatu identity "Schedule Date"
-                :expected-date :bstdk identity "Expected Date"
-                :entered-date :audat identity "Entered Date"
+                :schedule-at :edatu identity "Schedule Date"
+                :entered-at :audat identity "Entered Date"
+                :available-at :edatu identity "Available Date"
                 ]
    :delivery   [:delivery :vbeln-vl identity "Delivery"
                 :delivery-item-num :posnr-vl identity "Delivery Item #"]})
