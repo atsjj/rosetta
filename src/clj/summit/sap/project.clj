@@ -6,7 +6,8 @@
             [summit.utils.core :as utils :refer [->int examples]]
             [summit.sap.conversions :as conv]
             ;; [summit.sap.project :as project]
-            ))
+            )
+  (:import [java.util.Date]))
 
 (defn date->str [date]
   (last (clojure.string/split (print-str date) #"\"")))
@@ -317,12 +318,12 @@
 (defn- merge-order [orders order]
   (let [line-item-ids (apply conj [] (map :line-item-id orders))
         available-ats (apply conj [] (map :available-at orders))
-        available-ats (map date->str available-ats)
+        available-ats (map #(.getTime %) available-ats)
         circuit-ids (apply conj [] (map :circuit-id orders))]
     (merge
      order
      {:line-item-ids (-> line-item-ids set sort)
-      :max-available-at (-> available-ats sort last)
+      :max-available-at (java.util.Date. (apply max available-ats))
       :circuit-ids (disj (set circuit-ids) "")
       :attributes (:attrs (first orders))})))
 
