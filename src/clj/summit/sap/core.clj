@@ -269,27 +269,27 @@
         ))
     ))
 
-(defrecord sap-data-translation
-    [web-name sap-name descript type length required? active? default columns])
+;; (defrecord sap-data-translation
+;;     [web-name sap-name descript type length required? active? default columns])
 
-(def sap-data-translations (atom {}))
+;; (def sap-data-translations (atom {}))
 
-(defn create-sap-translation [v]
-  (case (nth v 3)
-                                           ; web-name  sap-name   descript  type      len       required? active?  default  columns
-    (:table :struct) (->sap-data-translation (first v) (second v) (nth v 2) (nth v 3) nil       nil       nil      nil      (map create-sap-translation (nth v 4)))
-    (let [cnt (count v)]
-      (->sap-data-translation                (first v) (second v) (nth v 2) (nth v 3) (nth v 4) (nth v 5) (nth v 6) (nth v 7) nil)
-      )
-    ))
-;; (field-definition y)
+;; (defn create-sap-translation [v]
+;;   (case (nth v 3)
+;;                                            ; web-name  sap-name   descript  type      len       required? active?  default  columns
+;;     (:table :struct) (->sap-data-translation (first v) (second v) (nth v 2) (nth v 3) nil       nil       nil      nil      (map create-sap-translation (nth v 4)))
+;;     (let [cnt (count v)]
+;;       (->sap-data-translation                (first v) (second v) (nth v 2) (nth v 3) (nth v 4) (nth v 5) (nth v 6) (nth v 7) nil)
+;;       )
+;;     ))
+;; ;; (field-definition y)
 
-(create-sap-translation
-  [:atps "MAT_ATP" "availability" :table
-   [[:matnr          "MATNR" "material number" :char 18 :matnr]
-    [:service-center "WERKS" "plant"           :char 5 nil]
-    [:qty            "COM_QTY" "quantity"      :bcd 15 :bigint-bcd]
-    ]])
+;; (create-sap-translation
+;;   [:atps "MAT_ATP" "availability" :table
+;;    [[:matnr          "MATNR" "material number" :char 18 :matnr]
+;;     [:service-center "WERKS" "plant"           :char 5 nil]
+;;     [:qty            "COM_QTY" "quantity"      :bcd 15 :bigint-bcd]
+;;     ]])
 
 ;; {:z-isa-mat-availabiliity
 ;;  {:inputs [:matnr "MATNR"]

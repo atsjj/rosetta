@@ -472,7 +472,7 @@
                       :circuits       {:data
                                        (for [[id _] circuits]
                                          {:type :circuit :id id})}
-                      :accounts       {:data
+                      :account        {:data
                                        {:type "account" :id (project-account-num project-id)}}}}
      :included
      (concat orders items deliveries
