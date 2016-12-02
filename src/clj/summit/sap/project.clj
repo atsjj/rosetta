@@ -69,10 +69,8 @@
                 :descript :arktx identity "Description"
                 :circuit-id :circ-id identity "Circuit ID"
                 :requested-qty :kwmeng double "Requested Quantity"
-                :delivered-qty :lfimg double "Delivered Quantity"
-                :picked-qty :picked double "Picked Quantity"
-                :total-goods-issue-qty :tot-gi-qty double "Total Goods Issue Quantity"
-                :remaining-qty :remaining double "Remaining Quantity"  ;; still to be delivered
+                :delivered-qty :tot-gi-qty double "Delivered Quantity"    ;; "Total Goods Issue Quantity"
+                ;; :remaining-qty :remaining double "Remaining Quantity"  ;; still to be delivered
                 :reserved-qty :resv-qty double "Reserved Quantity"
                 :uom :vrkme identity "UOM"
                 :inventory-loc :inv-loc identity "Inventory Loc"
@@ -85,6 +83,8 @@
                 :available-at :edatu identity "Available Date"
                 ]
    :delivery   [:delivery :vbeln-vl identity "Delivery"
+                ;; :delivered-qty :lfimg double "Delivered Quantity"   ;; means "printed" in the warehouse. Totally worthless for the customer
+                :delivered-qty :picked double "Delivered Quantity"     ;; picked is the closest to what the customer would call delivered
                 :delivery-item-num :posnr-vl identity "Delivery Item #"]})
 
 (defn- fetch-project-json [system project-id]
