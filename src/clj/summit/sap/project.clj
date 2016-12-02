@@ -69,7 +69,7 @@
                 :descript :arktx identity "Description"
                 :circuit-id :circ-id identity "Circuit ID"
                 :requested-qty :kwmeng double "Requested Quantity"
-                :delivered-qty :tot-gi-qty double "Delivered Quantity"    ;; "Total Goods Issue Quantity"
+                :delivered-qty :tot-gi-qty double "Total Delivered Quantity"    ;; "Total Goods Issue Quantity"
                 ;; :remaining-qty :remaining double "Remaining Quantity"  ;; still to be delivered
                 :reserved-qty :resv-qty double "Reserved Quantity"
                 :uom :vrkme identity "UOM"
