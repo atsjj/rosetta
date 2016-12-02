@@ -369,17 +369,19 @@
 
 (defn- merge-item [items item]
   (let [delivery-ids (apply conj [] (filter #(not-empty %) (map :delivery items)))
-        delivered-qty (apply + (map :delivered-qty items))
-        picked-qty (apply + (map :picked-qty items))]
+        ;; delivered-qty (apply + (map :delivered-qty items))
+        ;; picked-qty (apply + (map :picked-qty items))
+        ]
     (merge
      item
      {:delivery-ids delivery-ids
-      :delivered-qty delivered-qty
-      :picked-qty picked-qty
+      ;; :delivered-qty delivered-qty
+      ;; :picked-qty picked-qty
       :attributes (:attrs (first items))})))
 
 (defn- join-like-items [items]
-  (let [unique-items (set (map #(dissoc % :delivery :delivered-qty :picked-qty :attrs) items))]
+  ;; (let [unique-items (set (map #(dissoc % :delivery :delivered-qty :picked-qty :attrs) items))]
+  (let [unique-items (set (map #(dissoc % :delivery :picked-qty :attrs) items))]
     (map #(merge-item (collect-same items (:id %)) %) unique-items)))
 
 (defn- line-item->json-api [item]
@@ -416,7 +418,9 @@
   (->> maps
        (map (fn [m] {:type :project-delivery
                      :id (-> m :delivery :delivery)
-                     :attributes {:attributes (:delivery-attr-vals m)}}))
+                     :attributes
+                     {:attributes (:delivery-attr-vals m)
+                      :delivered-qty (-> m :delivery :delivered-qty)}}))
        (filter #(not-empty (:id %)))
        set
        (add-delivery->line-item-relationships maps)))
@@ -556,7 +560,7 @@
     project-fn))
 
 (defn- get-project
-  "get project data from sap and cache for spreadsheet and project"
+  "force get project data from sap and cache for spreadsheet and project"
   [system project-id]
   (let [f (execute-project-query system project-id)
         raw-data (raw-project-data f)   ;; this is schema + vector data, not maps
@@ -635,9 +639,14 @@
                       )))
 (examples
  (project :qas 1)
+ (project :qas 28)
  (project :prd 3)
+ (def x (project :prd 3))
+ (def x (project :qas 28))
  (get-project :qas 1)
+ (get-project :qas 28)
  (get-project :prd 3)
+ (def x (get-project :prd 3))
  (println "hey")
  (projects :qas 1002225)
  (projects :prd 1037657)
@@ -652,3 +661,10 @@
 ;; (keys (-> p1 :data :relationships))
 
 (println "done loading summit.sap.project")
+
+;; (-> x keys)
+;; (->> x :included (filter #(= (:type %) :project-order)))
+;; (->> x :included (map #(keys %)))
+;; (->> x :included (map #(% :type)))
+;; (->> x :included (filter #(= (% :type) :project-line-item)) first :attributes)
+;; (->> x :included (filter #(= (% :type) :project-delivery)) first )
