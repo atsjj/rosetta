@@ -416,7 +416,7 @@
   (->> maps
        (map (fn [m] {:type :project-delivery
                      :id (-> m :delivery :delivery)
-                     :attributes (:delivery-attr-vals m)}))
+                     :attributes {:attributes (:delivery-attr-vals m)}}))
        (filter #(not-empty (:id %)))
        set
        (add-delivery->line-item-relationships maps)))
