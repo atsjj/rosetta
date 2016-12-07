@@ -283,6 +283,10 @@
    ;; :errors-are-caught #(do (println "hey") (/ 1 0))
    ;; :project-id-3 #(force-cache #'get-project :prd 3)
    })
+(def daily-jobs
+  {
+   :project-id-3 #(project/projects :prd 1037657)
+   })
 
 
 ;; bapi for retrieving a project does not return the owning account number.
@@ -294,10 +298,17 @@
 (if (nil? (project/project-account-num 3))
   (project/projects :prd 1037657))
 
+(def second 1000)
+(def minute (* 60 second))
+(def quarter-hour (* 15 minute))
+(def hour (* 60 minute))
+(def day (* 24 hour))
+
 (periodic/stop-all-cron-jobs)
-;; (periodic/start-cron-jobs (* 1000) hourly-jobs)
-;; (periodic/start-cron-jobs (* 60 60 1000) hourly-jobs)
-(periodic/start-cron-jobs (* 15 60 1000) quarter-hourly-jobs)
+;; (periodic/start-cron-jobs second hourly-jobs)
+(periodic/start-cron-jobs quarter-hour quarter-hourly-jobs)
+;; (periodic/start-cron-jobs hour hourly-jobs)
+(periodic/start-cron-jobs day daily-jobs)
 ;; (force-cache #'get-project :prd 3)
 
 (println "done loading summit.sap.routes")
