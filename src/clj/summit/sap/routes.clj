@@ -274,10 +274,14 @@
       )))
 
 
+(def quarter-hourly-jobs
+  {
+   :project-id-3 #(force-cache #'get-project :prd 3)
+   })
 (def hourly-jobs
   {
    ;; :errors-are-caught #(do (println "hey") (/ 1 0))
-   :project-id-3 #(force-cache #'get-project :prd 3)
+   ;; :project-id-3 #(force-cache #'get-project :prd 3)
    })
 
 
@@ -292,7 +296,8 @@
 
 (periodic/stop-all-cron-jobs)
 ;; (periodic/start-cron-jobs (* 1000) hourly-jobs)
-(periodic/start-cron-jobs (* 1000 60 60) hourly-jobs)
+;; (periodic/start-cron-jobs (* 60 60 1000) hourly-jobs)
+(periodic/start-cron-jobs (* 15 60 1000) quarter-hourly-jobs)
 ;; (force-cache #'get-project :prd 3)
 
 (println "done loading summit.sap.routes")
