@@ -285,7 +285,7 @@
    })
 (def daily-jobs
   {
-   :project-id-3 #(project/projects :prd 1037657)
+   ;; :project-id-3 #(project/projects :prd 1037657)
    })
 
 
@@ -308,7 +308,7 @@
 ;; (periodic/start-cron-jobs second hourly-jobs)
 (periodic/start-cron-jobs quarter-hour quarter-hourly-jobs)
 ;; (periodic/start-cron-jobs hour hourly-jobs)
-(periodic/start-cron-jobs day daily-jobs)
+;; (periodic/start-cron-jobs day daily-jobs)
 ;; (force-cache #'get-project :prd 3)
 
 (println "done loading summit.sap.routes")
