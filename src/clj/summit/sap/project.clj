@@ -475,9 +475,11 @@
     {:data
      {:type          :project
       :id            project-id
-      :attributes    {:project-order-attributes     (attrize (:order-attr-defs maps))
+      :attributes    {:name                         (project-name project-id)
+                      :project-order-attributes     (attrize (:order-attr-defs maps))
                       :project-line-item-attributes (attrize (:line-item-attr-defs maps))
-                      :project-delivery-attributes  (attrize (:delivery-attr-defs maps))}
+                      :project-delivery-attributes  (attrize (:delivery-attr-defs maps))
+                      }
       :relationships {:project-orders {:data json-orders}
                       ;; TODO: could there be duplicates here? If so, put the drawing nums into a set first
                       :drawings       {:data
