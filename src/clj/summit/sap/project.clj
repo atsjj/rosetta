@@ -266,6 +266,9 @@
 (defn- line-item-id [m]
   (str (-> m :order :order-num) "-" (-> m :line-item :item-num)))
 
+(defn- delivery-line-item-id [m]
+  (str (-> m :delivery :delivery utils/->long) "-" (-> m :delivery :delivery-item-num utils/->long) "-" (line-item-id m)))
+
 (defn- collect-same [v id]
   (filter #(= id (:id %)) v))
 
@@ -285,12 +288,11 @@
    :order-attr-vals (extract-attr-vals m "zz-zvsemm-vbak-attr-")
    :line-item-attr-vals (extract-attr-vals m "zz-zvsemm-vbap-attr-")
    :delivery-attr-vals (extract-attr-vals m "zz-zvsemm-likp-attr-")
-   :raw m})
+   ;; :raw m
+   })
 
-;; (project 2)
 (defn transform-status-lines [m]
-  (let [lines (map transform-status-line m)]
-    lines))
+  (map transform-status-line m))
 
 (defn pull-project-json-api-maps [project-fn]
   (let [attr-defs (partition 3
@@ -390,7 +392,11 @@
 (defn- line-item->json-api [item]
   (let [deliveries
         (map (fn [x] {:type :project-line-item-delivery
-                      :id (str (utils/->long (:delivery x)) "-" (utils/->long (:delivery-item-num x)))}) (:deliveries item))]
+                      :id (str (utils/->long (:delivery x)) "-" (utils/->long (:delivery-item-num x))
+                               "-" (:id item))})
+             (:deliveries item))]
+    ;; {:type :project-line-item-delivery
+    ;;  :id (delivery-line-item-id m)})
     {:type :project-line-item
      :id (:id item)
      :attributes (dissoc item :order-id :delivery-ids)
@@ -401,19 +407,35 @@
                       deliveries (assoc :project-line-item-deliveries {:data deliveries})
                       )}))
 
-(defn- line-item-deliveries->json-api [item]
-  (let [deliveries
-        (map (fn [x] {:type :project-line-item-delivery
-                      :id (str (utils/->long (:delivery x)) "-" (utils/->long (:delivery-item-num x)))}) (:deliveries item))]
-    {:type :project-line-item
-     :id (:id item)
-     :attributes (dissoc item :order-id :delivery-ids)
-     :relationships (cond-> {:project-order {:data {:type :project-order :id (:order-id item)}}
-                             :line-item {:data {:type :line-item :id (:id item)}}
-                             ;; :project-deliveries {:data (map (fn [x] {:type :project-delivery :id x}) (:delivery-ids item))}
-                             }
-                      deliveries (assoc :project-line-item-deliveries {:data deliveries})
-                      )}))
+;; (defn- deliveries->json-api [item]
+;;   (map (fn [x] {:type :project-delivery
+;;                 :id (utils/->long x)
+;;                 :relationships
+;;                 (map
+;;                  (fn [x]
+;;                    {:type :project-line-item-delivery
+;;                     :id
+;;                     (str (utils/->long (:delivery x)) "-" (utils/->long (:delivery-item-num x)))}
+;;                    :attributes {:qty (:delivered-qty x)}
+;;                    )
+;;                  (filter #(= x (:delivery %)) (:deliveries item))
+;;                  )})
+;;        (set (map :delivery (:deliveries item)))))
+
+(defn- delivery-line-item->json-api [status-line]
+  (let [line-item-id (line-item-id status-line)
+        delivery (:delivery status-line)
+        delivery-id (-> delivery :delivery utils/->long str)
+        delivery-line-item-id (delivery-line-item-id status-line)
+        ]
+    {:type :project-line-item-delivery
+     :id delivery-line-item-id
+     :relationships {:project-delivery {:data {:type :project-delivery :id delivery-id}}
+                     :project-line-item {:data {:type :project-line-item :id line-item-id}}}
+     :attributes {:qty (:delivered-qty delivery)}}))
+
+(defn- delivery-line-items->json-api [status-lines]
+  (map delivery-line-item->json-api (filter #(-> % :delivery :delivery not-empty) status-lines)))
 
 (defn- extract-unique-line-items [maps]
   (->> maps
@@ -429,20 +451,22 @@
          (let [delivery-id (:id delivery)
                matching (filter #(= (get-in % [:delivery :delivery]) delivery-id) maps)]
            (assoc delivery :relationships
-                  {:data
-                   (map (fn [m]
-                          {:type :project-line-item
-                           :id (line-item-id m)})
-                        matching)})))
+                  {:project-line-item-deliveries
+                   {:data
+                    (map (fn [m]
+                           {:type :project-line-item-delivery
+                            :id (delivery-line-item-id m)})
+                         matching)}})))
        deliveries))
 
 (defn- extract-deliveries [maps]
   (->> maps
        (map (fn [m] {:type :project-delivery
                      :id (-> m :delivery :delivery)
-                     :attributes
-                     {:attributes (:delivery-attr-vals m)
-                      :delivered-qty (-> m :delivery :delivered-qty)}}))
+                     ;; :attributes
+                     ;; {:attributes (:delivery-attr-vals m)
+                     ;;  :delivered-qty (-> m :delivery :delivered-qty)}
+                     }))
        (filter #(not-empty (:id %)))
        set
        (add-delivery->line-item-relationships maps)))
@@ -518,8 +542,8 @@
              (drawings->json-api project-id drawings)
              (circuits->json-api project-id circuits)
 
-             ;; (deliveries->json-api)
-             ;; (delivery-line-items->json-api)
+             ;; (deliveries->json-api unique-items)
+             (delivery-line-items->json-api status-lines)
              )
      ;; :raw maps
      }))
