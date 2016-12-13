@@ -169,7 +169,8 @@
       (GET "/accounts/:account-id/projects/:project-id" req
         (let [server (keyword (get-env-param req :server @default-server))
               id     (->int (get-param req :project-id nil))
-              proj   (cache #'get-project server id)
+              ;; proj   (cache #'get-project server id)
+              proj   (get-project server id)
               ]
           (json-api-response proj
                              req
