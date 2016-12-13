@@ -360,7 +360,8 @@
 (defn- transform-raw-item [m]
   (let [item (:line-item m)
         order-id (-> m :order :order-num)
-        delivery (-> m :delivery :delivery)]
+        delivery (-> m :delivery)]
+        ;; delivery (-> m :delivery :delivery)]
     (assoc item
            :id (line-item-id m)
            :order-id order-id
@@ -368,13 +369,15 @@
            :attrs (:line-item-attr-vals m))))
 
 (defn- merge-item [items item]
-  (let [delivery-ids (apply conj [] (filter #(not-empty %) (map :delivery items)))
+  ;; (let [delivery-ids (apply conj [] (filter #(not-empty %) (map :delivery items)))
+  (let [deliveries (apply conj [] (filter #(not-empty (:delivery %)) (map :delivery items)))
         ;; delivered-qty (apply + (map :delivered-qty items))
         ;; picked-qty (apply + (map :picked-qty items))
         ]
     (merge
      item
-     {:delivery-ids delivery-ids
+     ;; {:delivery-ids delivery-ids
+     {:deliveries deliveries
       ;; :delivered-qty delivered-qty
       ;; :picked-qty picked-qty
       :attributes (:attrs (first items))})))
@@ -385,22 +388,41 @@
     (map #(merge-item (collect-same items (:id %)) %) unique-items)))
 
 (defn- line-item->json-api [item]
-  {:type :project-line-item
-   :id (:id item)
-   :attributes (dissoc item :order-id :delivery-ids)
-   :relationships {:project-order {:data {:type :project-order :id (:order-id item)}}
-                   :line-item {:data {:type :line-item :id (:id item)}}
-                   :project-deliveries {:data (map (fn [x] {:type :project-delivery :id x}) (:delivery-ids item))}}})
+  (let [deliveries
+        (map (fn [x] {:type :project-line-item-delivery
+                      :id (str (utils/->long (:delivery x)) "-" (utils/->long (:delivery-item-num x)))}) (:deliveries item))]
+    {:type :project-line-item
+     :id (:id item)
+     :attributes (dissoc item :order-id :delivery-ids)
+     :relationships (cond-> {:project-order {:data {:type :project-order :id (:order-id item)}}
+                             :line-item {:data {:type :line-item :id (:id item)}}
+                             ;; :project-deliveries {:data (map (fn [x] {:type :project-delivery :id x}) (:delivery-ids item))}
+                             }
+                      deliveries (assoc :project-line-item-deliveries {:data deliveries})
+                      )}))
 
-(defn- extract-line-items [maps]
+(defn- line-item-deliveries->json-api [item]
+  (let [deliveries
+        (map (fn [x] {:type :project-line-item-delivery
+                      :id (str (utils/->long (:delivery x)) "-" (utils/->long (:delivery-item-num x)))}) (:deliveries item))]
+    {:type :project-line-item
+     :id (:id item)
+     :attributes (dissoc item :order-id :delivery-ids)
+     :relationships (cond-> {:project-order {:data {:type :project-order :id (:order-id item)}}
+                             :line-item {:data {:type :line-item :id (:id item)}}
+                             ;; :project-deliveries {:data (map (fn [x] {:type :project-delivery :id x}) (:delivery-ids item))}
+                             }
+                      deliveries (assoc :project-line-item-deliveries {:data deliveries})
+                      )}))
+
+(defn- extract-unique-line-items [maps]
   (->> maps
        (map transform-raw-item)
        join-like-items
-       (map line-item->json-api)))
+       ))
 
-(defn- delivery->json-api [id]
-  {:type "delivery"
-   :id id})
+(defn- extract-line-items [unique-items]
+  (map line-item->json-api unique-items))
 
 (defn- add-delivery->line-item-relationships [maps deliveries]
   (map (fn [delivery]
@@ -466,7 +488,8 @@
 (defn transform-project [project-id maps]
   (let [status-lines (:status-lines maps)
         order-ids    (set (map #(-> % :order :order-num) status-lines))
-        items        (extract-line-items status-lines)
+        unique-items (extract-unique-line-items status-lines)
+        items        (extract-line-items unique-items)
         orders       (extract-orders status-lines)
         deliveries   (extract-deliveries status-lines)
         drawings     (extract-drawings status-lines)
@@ -493,7 +516,11 @@
      :included
      (concat orders items deliveries
              (drawings->json-api project-id drawings)
-             (circuits->json-api project-id circuits))
+             (circuits->json-api project-id circuits)
+
+             ;; (deliveries->json-api)
+             ;; (delivery-line-items->json-api)
+             )
      ;; :raw maps
      }))
 
@@ -647,7 +674,8 @@
  (def x (project :qas 28))
  (get-project :qas 1)
  (get-project :qas 28)
- (get-project :prd 3)
+ (do
+   (get-project :prd 3) nil)
  (def x (get-project :prd 3))
  (println "hey")
  (projects :qas 1002225)
