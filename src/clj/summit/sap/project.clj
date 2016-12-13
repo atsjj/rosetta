@@ -41,10 +41,10 @@
 
 
 
-(def ^:private et-project-fields [:client :id :sold-to :name :title :start-date :end-date :service-center-code :status :last-modifier :modified-on])
+(defonce ^:private et-project-fields [:client :id :sold-to :name :title :start-date :end-date :service-center-code :status :last-modifier :modified-on])
 
 ;; cached during call to projects (plural)
-(def ^:private cached-projects (atom {}))
+(defonce ^:private cached-projects (atom {}))
 (defn project-name [id]
   (:name (@cached-projects id)))
 
@@ -53,8 +53,8 @@
 ;; (project-account-num 3)
 
 ;; cached during call to project (singular)
-(def ^:private project-json-cache (atom {}))
-(def ^:private project-status-lines-cache (atom {}))
+(defonce ^:private project-json-cache (atom {}))
+(defonce ^:private project-status-lines-cache (atom {}))
 
 (def extractions
   {:order-info [;; :id (swap! id-seq-num inc)
