@@ -226,7 +226,8 @@
         (let [server (keyword (get-env-param req :server @default-server))
               id     (->int (get-param req :project-id nil))
               ;; proj (get-project server id)
-              proj   (cache #'get-project server id)
+              ;; proj   (cache #'get-project server id)
+              proj (get-project server id)
               ]
           ;; {:status 200
           ;;  :headers {"Content-Type" "application/json; charset=utf-8"}
@@ -295,7 +296,8 @@
 ;; available either).
 ;; but that means the projects bapi must be called first.
 ;; the call below is made to ensure we have the info on bootup.
-(if (nil? (project/project-account-num 3))
+(when (nil? (project/project-account-num 3))
+  (println "getting projects for account 1037657")
   (project/projects :prd 1037657))
 
 (def second 1000)
