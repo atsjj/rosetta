@@ -16,7 +16,8 @@
             [clojure.string :as str]
             [clojure.java.io :as io]))
 
-(def default-server (atom :prd))
+;; (def default-server (atom :qas))
+(defonce default-server (atom :prd))
 
 ;; ----------------------  cache functions
 
@@ -147,7 +148,7 @@
 
       (GET "/default-server/:server-name" req
         (let [server-name (get-in req [:params :server-name])]
-          (if (contains? #{"dev" "qas" "prd"} server-name)
+          (if (contains? #{"dev" "qas" "prd" "prod"} server-name)
             (do
               (reset! default-server (keyword server-name))
               {:status  200

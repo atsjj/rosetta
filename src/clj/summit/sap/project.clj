@@ -319,15 +319,18 @@
 
 (defn- merge-order [orders order]
   (let [line-item-ids (apply conj [] (map :line-item-id orders))
-        available-ats (apply conj [] (map :available-at orders))
+        available-ats (apply conj [] (remove nil? (map :available-at orders)))
         available-ats (map #(.getTime %) available-ats)
+        max-available-ats (if (not-empty available-ats) (apply max available-ats))
         circuit-ids (apply conj [] (map :circuit-id orders))]
     (merge
      order
      {:line-item-ids (-> line-item-ids set sort)
-      :max-available-at (java.util.Date. (apply max available-ats))
+      :max-available-at (if max-available-ats (java.util.Date. max-available-ats))
       :circuit-ids (disj (set circuit-ids) "")
-      :attributes (:attrs (first orders))})))
+      :attributes (:attrs (first orders))
+      }
+     )))
 
 (defn- join-like-orders [orders]
   (let [unique-orders (set (map #(dissoc % :line-item-id :available-at :circuit-id :attrs) orders))]
@@ -342,7 +345,7 @@
         proj-order-id (str project-id "-" order-id)]
     {:type :project-order
      :id order-id
-     ;; :max-available-at (:max-available-at order)
+     :max-available-at (:max-available-at order)
      :attributes (dissoc order :id :project-id :line-item-ids :circuit-ids)
      :relationships {:order
                      {:links
@@ -363,7 +366,6 @@
   (let [item (:line-item m)
         order-id (-> m :order :order-num)
         delivery (-> m :delivery)]
-        ;; delivery (-> m :delivery :delivery)]
     (assoc item
            :id (line-item-id m)
            :order-id order-id
@@ -390,16 +392,18 @@
     (map #(merge-item (collect-same items (:id %)) %) unique-items)))
 
 (defn- line-item->json-api [item]
-  (let [deliveries
+  ;; (let [closed-deliveries (remove #(and (not-empty (:delivery %)) (<= (:delivered-qty %) 0)) (:deliveries item))
+  (let [closed-deliveries (remove #(<= (:delivered-qty %) 0) (:deliveries item))
+        deliveries
         (map (fn [x] {:type :project-line-item-delivery
                       :id (str (utils/->long (:delivery x)) "-" (utils/->long (:delivery-item-num x))
                                "-" (:id item))})
-             (:deliveries item))]
+             closed-deliveries)]
     ;; {:type :project-line-item-delivery
     ;;  :id (delivery-line-item-id m)})
     {:type :project-line-item
      :id (:id item)
-     :attributes (dissoc item :order-id :delivery-ids)
+     :attributes (dissoc item :order-id :delivery-ids :deliveries)
      :relationships (cond-> {:project-order {:data {:type :project-order :id (:order-id item)}}
                              :line-item {:data {:type :line-item :id (:id item)}}
                              ;; :project-deliveries {:data (map (fn [x] {:type :project-delivery :id x}) (:delivery-ids item))}
@@ -435,7 +439,13 @@
      :attributes {:qty (:delivered-qty delivery)}}))
 
 (defn- delivery-line-items->json-api [status-lines]
-  (map delivery-line-item->json-api (filter #(-> % :delivery :delivery not-empty) status-lines)))
+  (map delivery-line-item->json-api
+       (->>
+        status-lines
+        (filter #(-> % :delivery :delivery not-empty))
+        (remove #(<= (-> % :delivery :delivered-qty) 0))  ;; remove open items (ticket has dropped but not pgi'ed)
+        ;; (remove #(and (not-empty (-> % :delivery :deliver)) (<= (-> % :delivery :delivered-qty) 0)))  ;; remove open items (ticket has dropped but not pgi'ed)
+        )))
 
 (defn- extract-unique-line-items [maps]
   (->> maps
@@ -460,7 +470,9 @@
        deliveries))
 
 (defn- extract-deliveries [maps]
-  (->> maps
+  ;; (->> maps
+  ;; (->> (remove #(and (not-empty (-> % :delivery :delivery)) (<= (-> % :delivery :delivered-qty) 0)) maps)
+  (->> (remove #(<= (-> % :delivery :delivered-qty) 0) maps)
        (map (fn [m] {:type :project-delivery
                      :id (-> m :delivery :delivery)
                      :attributes
@@ -539,13 +551,16 @@
                       :account        {:data
                                        {:type "account" :id (project-account-num project-id)}}}}
      :included
-     (concat orders items deliveries
-             (drawings->json-api project-id drawings)
-             (circuits->json-api project-id circuits)
+     (concat
+      orders
+      items
+      deliveries
+      (drawings->json-api project-id drawings)
+      (circuits->json-api project-id circuits)
 
-             ;; (deliveries->json-api unique-items)
-             (delivery-line-items->json-api status-lines)
-             )
+      ;; (deliveries->json-api unique-items)
+      (delivery-line-items->json-api status-lines)
+      )
      ;; :raw maps
      }))
 
@@ -686,11 +701,11 @@
 
 
 (defn project
-  ([project-id] (project :prd project-id))
+  ([project-id] (project :qas project-id))
   ([system project-id]
    (utils/ppn (str "getting project " project-id " on " system))
-   (transform-project project-id (ensure-project system project-id)
-                      )))
+   (transform-project project-id (ensure-project system project-id))
+   ))
 (examples
  (project :qas 1)
  (project :qas 28)
