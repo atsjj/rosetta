@@ -463,9 +463,10 @@
   (->> maps
        (map (fn [m] {:type :project-delivery
                      :id (-> m :delivery :delivery)
-                     ;; :attributes
-                     ;; {:attributes (:delivery-attr-vals m)
-                     ;;  :delivered-qty (-> m :delivery :delivered-qty)}
+                     :attributes
+                     {:attributes (:delivery-attr-vals m)
+                      ;; :delivered-qty (-> m :delivery :delivered-qty)
+                      }
                      }))
        (filter #(not-empty (:id %)))
        set
