@@ -158,7 +158,8 @@
 (defn push [f m]
   ;; (map (fn [[k v]] (vector k v)) m))
   ;; (map (fn [[k v]] (vector (find-field f k) v)) m))
-  (doall (map (fn [[k v]] (set-data (find-field f k) v)) m)))
+  (doall (map (fn [[k v]] (set-data (find-field f k) v)) m))
+  f)
 
 
 ;; (defn table-field-names [fld]              ;; defined above
@@ -329,31 +330,31 @@
 ;;    )
 ;;   )
 
-(defprotocol SapEntity
-  (val [this])
-  (definition [this])
-  )
+;; (defprotocol SapEntity
+;;   (val [this])
+;;   (definition [this])
+;;   )
 
-(extend com.sap.conn.jco.rt.AbapFunction
-  SapEntity
-  {:val (fn [this] 3)
-   :definition (fn [this] 4)
-   }
-  )
+;; (extend com.sap.conn.jco.rt.AbapFunction
+;;   SapEntity
+;;   {:val (fn [this] 3)
+;;    :definition (fn [this] 4)
+;;    }
+;;   )
 
-(extend com.sap.conn.jco.rt.DefaultTable
-  SapEntity
-  {:val (fn [this] 3)
-   :definition (fn [this] 4)
-   }
-  )
+;; (extend com.sap.conn.jco.rt.DefaultTable
+;;   SapEntity
+;;   {:val (fn [this] 3)
+;;    :definition (fn [this] 4)
+;;    }
+;;   )
 
-(extend com.sap.conn.jco.rt.DefaultParameterField
-  SapEntity
-  {:val (fn [this] 3)
-   :definition (fn [this] 4)
-   }
-  )
+;; (extend com.sap.conn.jco.rt.DefaultParameterField
+;;   SapEntity
+;;   {:val (fn [this] 3)
+;;    :definition (fn [this] 4)
+;;    }
+;;   )
 
 
 (examples

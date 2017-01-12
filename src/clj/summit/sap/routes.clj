@@ -3,8 +3,12 @@
 (ns summit.sap.routes
   (:require [compojure.core :refer [defroutes GET routes wrap-routes context]]
 
+            [clojure.string :as str]
+            [clojure.java.io :as io]
+
             [summit.utils.core :refer [->int]]
             [summit.sap.core :as erp]
+            [summit.sap.price :as price]
             [summit.sap.project :as project]
             [summit.sap.spreadsheet :as spreadsheet]
             ;; [summit.sap.project2 :as project2]
@@ -12,9 +16,7 @@
 
             [summit.utils.core :as utils]
             [summit.sap.periodic :as periodic]
-
-            [clojure.string :as str]
-            [clojure.java.io :as io]))
+            ))
 
 ;; (def default-server (atom :qas))
 (defonce default-server (atom :prd))
@@ -178,6 +180,24 @@
                              {:server server :project-id id}
                              )
           ))
+
+      (GET "/internet-prices" req
+           (println "in /internet-prices")
+           (let [server (keyword (get-env-param req :server @default-server))
+                 ;; matnrs (-> (get-param req :matnrs "") (fn [s] (str "[" s "]")) read-string)
+                 matnrs (read-string (str "[" (get-param req :matnrs "") "]"))
+                 prices (when-not (empty? matnrs)
+                          (price/internet-prices matnrs))
+                 ]
+             (prn matnrs)
+             (prn prices)
+             {:status 200
+              :headers {"Content-Type" "text/json; charset=utf-8"}
+              :body prices
+              ;; :body {:schema [:matnr :requested-qty :price :unit-type]
+              ;;        :data prices}
+              }
+             ))
 
       (GET "/project-raw/:project-id" req
         (println "in /project-raw")
