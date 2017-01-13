@@ -70,7 +70,7 @@
                 :circuit-id :circ-id identity "Circuit ID"
                 :requested-qty :kwmeng double "Requested Quantity"
                 :delivered-qty :tot-gi-qty double "Total Delivered Quantity"    ;; "Total Goods Issue Quantity"
-                ;; :remaining-qty :remaining double "Remaining Quantity"  ;; still to be delivered
+                :remaining-qty :remaining double "Remaining To Deliver"  ;; still to be delivered
                 :reserved-qty :resv-qty double "Reserved Quantity"
                 :uom :vrkme identity "UOM"
                 :inventory-loc :inv-loc identity "Inventory Loc"
