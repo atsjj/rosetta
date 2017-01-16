@@ -485,11 +485,14 @@
        (add-delivery->line-item-relationships maps)))
 
 (defn- attrize [attribute-maps]
-  (map (fn [[key attr]]
-         {:key (:id attr)
-          :value (:title attr)
-          :sequence (->int (last (str/split (:id attr) #"-")))})
-       attribute-maps))
+  (->>
+   attribute-maps
+   (map (fn [[key attr]]
+          {:key (:id attr)
+           :value (:title attr)
+           :sequence (->int (last (str/split (:id attr) #"-")))}))
+   (remove #(= "--DELETE--" (:value %)))
+   ))
 
 (defn- drawings->json-api [project-id drawings]
   (for [[id order-nums] drawings]
