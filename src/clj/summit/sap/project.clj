@@ -631,7 +631,7 @@
     (execute project-fn)
     project-fn))
 
-(defn- get-project
+(defn get-project
   "force get project data from sap and cache for spreadsheet and project"
   [system project-id]
   (let [f (execute-project-query system project-id)

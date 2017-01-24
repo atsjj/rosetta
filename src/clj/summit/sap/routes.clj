@@ -296,10 +296,9 @@
           ))
       )))
 
-
 (def quarter-hourly-jobs
   {
-   :project-id-3 #(force-cache #'get-project :prd 3)
+   :project-id-3 #(project/get-project :prd 3)
    })
 (def hourly-jobs
   {
