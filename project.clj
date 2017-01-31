@@ -1,6 +1,6 @@
 (defproject rosetta "0.1.0-SNAPSHOT"
 
-  :description "FIXME: write description"
+  :description "Translations stone to sap"
   :url "http://example.com/FIXME"
 
   :dependencies [[org.clojure/clojure "1.8.0"]
@@ -29,6 +29,8 @@
                  [org.clojure/core.async "0.2.385"]
                  [argo "0.1.2"]  ;; for json api
                  [chazel "0.1.10"]
+
+                 [incanter "1.5.7"]
                  ]
 
   :min-lein-version "2.0.0"
