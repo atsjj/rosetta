@@ -173,7 +173,7 @@
         (let [server (keyword (get-env-param req :server @default-server))
               id     (->int (get-param req :project-id nil))
               ;; proj   (cache #'get-project server id)
-              proj   (get-project server id)
+              proj   (project/project server id)
               ]
           (json-api-response proj
                              req
@@ -249,7 +249,7 @@
               id     (->int (get-param req :project-id nil))
               ;; proj (get-project server id)
               ;; proj   (cache #'get-project server id)
-              proj (get-project server id)
+              proj (project/project server id)
               ]
           ;; {:status 200
           ;;  :headers {"Content-Type" "application/json; charset=utf-8"}
@@ -266,7 +266,7 @@
       (GET "/accounts/:account-id/projects" req
         (let [server      (keyword (get-env-param req :server @default-server))
               account-num (get-param req :account-id nil)
-              projs       (get-projects server account-num)]
+              projs       (project/projects server account-num)]
           (json-api-response projs
                              req
                              {:server server :account-num account-num}
@@ -276,7 +276,7 @@
       (GET "/projects" req
         (let [server      (keyword (get-env-param req :server @default-server))
               account-num (get-param req :account nil)
-              projs       (get-projects server account-num)]
+              projs       (project/projects server account-num)]
           (json-api-response projs
                              req
                              {:server server :account-num account-num}
@@ -288,6 +288,7 @@
               server   (keyword (get-env-param req :server @default-server))
               id       (->int (get-param req :id nil))
               order    (get-order customer server id)
+              ;; order    (order/order->json-api (order/order server id))
               ]
           (json-api-response order
                              req

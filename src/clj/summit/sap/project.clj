@@ -6,8 +6,67 @@
             [summit.utils.core :as utils :refer [->int examples]]
             [summit.sap.conversions :as conv]
             ;; [summit.sap.project :as project]
+
+            [incanter.core :as i]
+            [incanter.charts :as chart]
+            [incanter.stats :as stats]
+            [incanter.io :as io]
+            [incanter.datasets :as d]
             )
   (:import [java.util.Date]))
+
+;; http://incanter.org/docs/data-sorcery-new.pdf
+;; (i/view (chart/histogram (stats/sample-normal 1000)))
+;; (i/conj-rows [1 2] [3 4] [5 6])
+;; (i/dataset ["a" "b"] [[1 2] [3 4] [5 6]])
+;; (i/dataset [:a :b] [[1 2] [3 4] [5 6]])
+;; (i/view (i/dataset ["a" "b"] [[1 2] [3 4] [5 6]]))
+;; (i/to-dataset [{:a 1 :b 2} {:a 3 :b 4} {:a 5 :b 6 :c 7}])
+
+;; (i/$ :speed (d/get-dataset :cars))
+;; (i/with-data (d/get-dataset :cars)
+;;   [(stats/mean (i/$ :speed))
+;;    (stats/sd (i/$ :speed))])
+;; (i/with-data (d/get-dataset :iris)
+;;   (i/view i/$data)
+;;   (i/view (i/$ [:Sepal.Length :Sepal.Width :Species]))
+;;   (i/view (i/$ [:not :Petal.Width :Petal.Length]))
+;;   (i/view (i/$ 0 [:not :Petal.Width :Petal.Length]))))
+
+;; (i/$where {:Species "setosa"}
+;;           (d/get-dataset :iris))
+;; (i/$where {:Species "setosa"}
+;;         (d/get-dataset :iris))
+;; (i/$where {:Petal.Width {:lt 1.5}}
+;;         (d/get-dataset :iris))
+;; (i/$where {:Petal.Width {:gt 1.0, :lt 1.5}}
+;;         (d/get-dataset :iris))
+;; (i/$where {:Petal.Width {:gt 1.0, :lt 1.5} :Species {:in #{"virginica" "setosa"}}}
+;;         (d/get-dataset :iris))
+;; (i/$where (fn [row]
+;;             (or (< (row :Petal.Width) 1.0)
+;;                 (> (row :Petal.Length) 5.0)))
+;;           (d/get-dataset :iris))
+
+;; (i/with-data (d/get-dataset :hair-eye-color)
+;;   (i/view i/$data)
+;;   (i/view (i/$order :count :desc))
+;;   (i/view (i/$order [:hair :eye] :desc)))
+
+;; rollup
+;; (->> (d/get-dataset :iris)
+;;      (i/$rollup stats/mean :Petal.Length :Species)
+;;      i/view)
+;; (->> (d/get-dataset :iris)
+;;      (i/$rollup #(/ (stats/sd %) (count %))
+;;               :Petal.Length :Species)
+;;      i/view)
+;; (->> (d/get-dataset :hair-eye-color)
+;;      (i/$rollup i/sum :count [:hair :eye])
+;;      (i/$order :count :desc)
+;;      i/view)
+
+
 
 (defn date->str [date]
   (last (clojure.string/split (print-str date) #"\"")))
@@ -83,7 +142,7 @@
                 :available-at :edatu identity "Available Date"
                 ]
    :delivery   [:delivery :vbeln-vl identity "Delivery"
-                ;; :delivered-qty :lfimg double "Delivered Quantity"   ;; means "printed" in the warehouse. Totally worthless for the customer
+                :released-qty :lfimg double "Released Quantity (Pending)"   ;; means "printed" in the warehouse
                 :delivered-qty :picked double "Delivered Quantity"     ;; picked is the closest to what the customer would call delivered
                 :delivery-item-num :posnr-vl identity "Delivery Item #"]})
 
@@ -94,6 +153,8 @@
 
 (defn fetch-status-lines [system project-id]
   (@project-status-lines-cache [system project-id]))
+;; (:headers (fetch-status-lines :prd 3))
+
 (defn- cache-status-lines
   "cache status lines. used for spreadsheet data"
   [system project-id status-lines]
@@ -375,6 +436,9 @@
 (defn- merge-item [items item]
   ;; (let [delivery-ids (apply conj [] (filter #(not-empty %) (map :delivery items)))
   (let [deliveries (apply conj [] (filter #(not-empty (:delivery %)) (map :delivery items)))
+        released-qtys (->> deliveries (map :released-qty) (remove nil?))
+        released-qty (apply + released-qtys)
+        ;; released-qty (apply + (map :released-qty items))
         ;; delivered-qty (apply + (map :delivered-qty items))
         ;; picked-qty (apply + (map :picked-qty items))
         ]
@@ -382,32 +446,31 @@
      item
      ;; {:delivery-ids delivery-ids
      {:deliveries deliveries
+      :released-qty released-qty
+      :remaining-to-release (- (:requested-qty item) released-qty)
       ;; :delivered-qty delivered-qty
       ;; :picked-qty picked-qty
       :attributes (:attrs (first items))})))
 
 (defn- join-like-items [items]
   ;; (let [unique-items (set (map #(dissoc % :delivery :delivered-qty :picked-qty :attrs) items))]
-  (let [unique-items (set (map #(dissoc % :delivery :picked-qty :attrs) items))]
+  (let [unique-items (set (map #(dissoc % :delivery :released-qty :picked-qty :attrs) items))]
     (map #(merge-item (collect-same items (:id %)) %) unique-items)))
 
 (defn- line-item->json-api [item]
-  ;; (let [closed-deliveries (remove #(and (not-empty (:delivery %)) (<= (:delivered-qty %) 0)) (:deliveries item))
   (let [closed-deliveries (remove #(<= (:delivered-qty %) 0) (:deliveries item))
         deliveries
         (map (fn [x] {:type :project-line-item-delivery
                       :id (str (utils/->long (:delivery x)) "-" (utils/->long (:delivery-item-num x))
                                "-" (:id item))})
              closed-deliveries)]
-    ;; {:type :project-line-item-delivery
-    ;;  :id (delivery-line-item-id m)})
     {:type :project-line-item
      :id (:id item)
+     :links {:self (str "/api/v2/project-line-item/" (:id item))}
      :attributes (dissoc item :order-id :delivery-ids :deliveries)
-     :relationships (cond-> {:project-order {:data {:type :project-order :id (:order-id item)}}
-                             :line-item {:data {:type :line-item :id (:id item)}}
-                             ;; :project-deliveries {:data (map (fn [x] {:type :project-delivery :id x}) (:delivery-ids item))}
-                             }
+     :relationships (cond->
+                        {:project-order {:data {:type :project-order :id (:order-id item)}}
+                         :line-item {:data {:type :line-item :id (:id item)}}}
                       deliveries (assoc :project-line-item-deliveries {:data deliveries})
                       )}))
 
@@ -436,7 +499,8 @@
      :id delivery-line-item-id
      :relationships {:project-delivery {:data {:type :project-delivery :id delivery-id}}
                      :project-line-item {:data {:type :project-line-item :id line-item-id}}}
-     :attributes {:qty (:delivered-qty delivery)}}))
+     :attributes {:qty (:delivered-qty delivery)
+                  :released-qty (:released-qty delivery)}}))
 
 (defn- delivery-line-items->json-api [status-lines]
   (map delivery-line-item->json-api
@@ -719,7 +783,15 @@
  (get-project :qas 28)
  (do
    (get-project :prd 3) nil)
+ (count (project 3))
  (def x (get-project :prd 3))
+ (map #(type %) x)
+ (-> x keys)
+ (def y (project :prd 3))
+ (count y)
+ (map type y)
+ (-> y keys)
+
  (println "hey")
  (projects :qas 1002225)
  (projects :prd 1037657)

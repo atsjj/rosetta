@@ -17,7 +17,6 @@
 (defn delete-col-nums
   ([delete-cols] (fn [row] (delete-col-nums delete-cols row)))
   ([delete-cols row]
-   delete-cols
    (->>
     (map #(if (contains? delete-cols %2) :delete-it %1) row (range))
     (remove #(= % :delete-it))
