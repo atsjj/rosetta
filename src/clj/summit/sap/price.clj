@@ -3,9 +3,82 @@
             [summit.sap.types :refer :all]
             [summit.sap.core :refer :all]
             [summit.sap.conversions :as conv]
+
+            [mishmash.meta :as m]
+            [incanter.core :as incant]
+            [incanter.datasets :as d]
            ))
 
+
+(def headings [:matnr :requested-qty :requested-price :unit-price :unit-type])
+;; x
+
+
+;; (def x (call-prices "1000736" "ALB1" [[2802 1] [2803 5] [2804 15]]))
+;; ;; (pull x :et-price-output)
+;; ;; (map transform (pull x :et-price-output))
+
+;; ;; (def f (:function x))
+;; ;; (def f (find-function :qas :z-o-complete-pricing))
+;; ;; (def ff (:function f))
+;; ;; (type ff)
+;; ;; (.getName ff)
+;; ;; (m/getNames f)
+;; ;; (m/superclass ff)
+;; ;; (m/subclasses ff)
+;; ;; (keys x)
+;; (def pdata (pull-with-schema x :et-price-output))
+;; (def dd (incant/dataset headings (:data pdata)))
+;; ;; (def dd (incant/dataset (:names pdata) (:data pdata)))
+;; (:schema pdata)
+;; (incant/view dd)
+;; (type dd)
+;; (first dd)
+;; (count dd)
+;; (incant/col-names dd)
+;; (incant/nrow dd)
+;; (incant/ncol dd)
+;; (incant/$ [:matnr :netwr] dd)
+;; (incant/$ 0 dd)
+;; (incant/$ 0 :all dd)
+;; (incant/$ (range 2) :all dd)
+;; (incant/$ [0 1] :all dd)
+;; (incant/$ 1 dd)
+
+;; |             :matnr | :requested-qty | :requested-price | :unit-price | :unit-type |
+;; |--------------------+----------------+------------------+-------------+------------|
+;; | 000000000000002802 |          1.000 |             0.47 |         USD |        100 |
+;; | 000000000000002803 |          5.000 |             2.56 |         USD |        100 |
+;; | 000000000000002804 |         15.000 |             6.55 |         USD |        100 |
+
+;; (def ddd (incant/to-matrix (incant/$ (:names pdata) dd)))
+;; (type ddd)
+;; (count ddd)
+;; (first ddd)
+;; (second ddd)
+;; (reduce incant/plus ddd)
+;; (incant/$= ddd * 4)
+
+
+
+
 (declare transform make-matnr-qty)
+
+(defn call-prices
+  [account-number service-center-code matnr-qty-vec]
+  (try
+    (let [price-fn (find-function *sap-server* :z-o-complete-pricing)
+          v (map make-matnr-qty matnr-qty-vec)]
+      (->
+       price-fn
+       (push {:i-kunnr (conv/as-document-num-str account-number)
+              :i-werks service-center-code
+              :it-price-input v})
+       execute
+       ))
+    (catch Throwable e
+      (println "error in (prices " account-number " " service-center-code " " matnr-qty-vec ")")
+      [])))
 
 (defn prices
   [account-number service-center-code matnr-qty-vec]

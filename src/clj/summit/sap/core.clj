@@ -4,10 +4,12 @@
   (:require [clojure.string :as str]
 
             ;; [com.rpl.specter :as s]
+            [incanter.core :as i]
 
             [summit.utils.core :refer [examples ->str ->keyword ->int ppl]]
             [summit.sap.types :refer :all]
             [summit.sap.conversions :refer :all]
+            [mishmash.log :as log]
             )
   (:import  [com.sap.conn.jco
              JCo
@@ -21,6 +23,7 @@
 
 (def internet-account-number "0001027925")
 (def internet-service-center-code "ZZZZ")
+(def schema-col-names [:id :id-str :descript :type :width :where :required? :default])
 
 (def servers
   {:dev "dev"
@@ -256,6 +259,34 @@
                 return-key (if (coll? %) (second %) %)]
             [return-key (pull-with-schema f key)])
          names)))
+
+(defn pull-incanter
+  [f & request]
+  (let [tbls (map #(if (map? %) (:table %) %) request)
+        all-data (apply pull-with-schemas f tbls)]
+    (into {}
+          (map (fn [tbl [tbl-name d]]
+                 (let [names (if (map? tbl) (:names tbl) (:names d))
+                       conversions (if (map? tbl) (:conversions tbl))
+                       data (:data d)
+                       ;; data (if conversions
+                       ;;        (map
+                       ;;         (fn [d] (map #((nth %1 4) %2) d))
+                       ;;         data))
+                       ]
+                   [tbl-name
+                    {:schema (i/dataset schema-col-names (:schema d))
+                     :names names
+                     :data (i/dataset names data)
+                     :found-in tbl
+                     }]))
+               request all-data))
+    ))
+
+(defn view-all-schemas
+  [incanters]
+  (doseq [[tbl-name result] incanters]
+    (-> result :schema i/view)))
 
 (defn pull-map [f name & args]
   (let [fld (find-field f name)

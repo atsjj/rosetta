@@ -1,3 +1,5 @@
+(println "loading summit.utils.core")
+
 (ns summit.utils.core
   (:require
     [clojure.string :as str]
@@ -158,3 +160,5 @@
             ;; {3 [7 9] 4 [5]})))
             {3 #{7 9} 4 #{5}})))
  )
+
+(println "done loading summit.utils.core")

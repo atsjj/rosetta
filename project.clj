@@ -3,7 +3,7 @@
   :description "Translations stone to sap"
   :url "http://example.com/FIXME"
 
-  :dependencies [[org.clojure/clojure "1.8.0"]
+  :dependencies [[org.clojure/clojure "1.9.0-alpha14"]
                  [selmer "1.0.7"]
                  [markdown-clj "0.9.89"]
                  [ring-middleware-format "0.7.0"]
@@ -31,6 +31,9 @@
                  [chazel "0.1.10"]
 
                  [incanter "1.5.7"]
+
+                 [riemann-clojure-client "0.4.4"]
+                 [com.murphydye/mishmash "0.1.0-SNAPSHOT"]
                  ]
 
   :min-lein-version "2.0.0"
@@ -58,7 +61,7 @@
    :dev           [:project/dev :profiles/dev]
    :test          [:project/test :profiles/test]
 
-   :project/dev  {:dependencies [[prone "1.1.1"]
+   :project/dev  {:dependencies [[prone "1.1.4"]
                                  [ring/ring-mock "0.3.0"]
                                  [ring/ring-devel "1.5.0"]
                                  [pjstadig/humane-test-output "0.8.1"]]

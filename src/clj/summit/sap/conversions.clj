@@ -1,3 +1,5 @@
+(println "loading summit.sap.conversions")
+
 (ns summit.sap.conversions
   (:require
    [clojure.string :as str]
@@ -20,3 +22,4 @@
 (defn as-customer-num [string]
   (as-document-num-str string))
 
+(println "done loading summit.sap.conversions")

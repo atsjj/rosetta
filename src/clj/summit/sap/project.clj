@@ -1,19 +1,200 @@
 (println "loading summit.sap.project")
 
 (ns summit.sap.project
-  (:require [summit.sap.core :refer :all :as erp]
-            [clojure.string :as str]
-            [summit.utils.core :as utils :refer [->int examples]]
-            [summit.sap.conversions :as conv]
-            ;; [summit.sap.project :as project]
+  (:require [clojure.string :as string]
 
             [incanter.core :as i]
-            [incanter.charts :as chart]
-            [incanter.stats :as stats]
-            [incanter.io :as io]
-            [incanter.datasets :as d]
+            ;; [incanter.charts :as chart]
+            ;; [incanter.stats :as stats]
+            ;; [incanter.io :as io]
+            ;; [incanter.datasets :as d]
+
+            [summit.utils.core :as utils :refer [->int examples]]
+            [summit.sap.conversions :as conv]
+            [summit.sap.core :refer :all :as erp]
+            [mishmash.log :as log]
+            ;; [summit.sap.project :as project]
             )
   (:import [java.util.Date]))
+
+(println "       summit.sap.project after ns")
+
+;; (def f (find-function :qas :Z_O_ZVSEMM_KUNAG_ASSOC_PROJ))
+;; (def fp (find-function :qas :Z_O_ZVSEMM_PROJECT_CUBE))
+
+
+(def attribute-col-names [:db-id :project-id :attr-name :title :length :required? :conversion :public?])
+
+
+;; (keys @cached-raw-data)
+;; ;; (def p (execute-project-query :prd 3))
+;; (def p (get @cached-raw-data [:prd 3]))
+;; (-> p keys)
+
+;; (def myf (execute-project-query :prd 3))
+;; (def d2 (erp/pull-incanter
+;;          myf
+;;          {:table [:et-status-lines :status-lines] :names status-lines-names :conversions status-lines-defs}
+;;          {:table [:et-vbak-atts :order-attr-defs] :names attribute-col-names}
+;;          {:table [:et-vbap-atts :line-item-attr-defs] :names attribute-col-names}
+;;          {:table [:et-likp-atts :delivery-attr-defs] :names attribute-col-names}
+;;          ))
+;; (i/view (-> d2 :status-lines :data))
+;; (def ddd (-> d2 :status-lines :data))
+;; (type ddd)
+;; (identity (-> d2 :status-lines :data :rows first))
+;; $(i/$= (i/$ :delivered-qty status-lines) * 4)
+
+
+
+;; #############################################################################################
+
+;; important !!!
+;; should convert data prior to putting into incanter.
+
+;; (def s (i/add-derived-column :delivered-qty2 [:delivered-qty] #(* %1 4) status-lines))
+
+;; #############################################################################################
+
+
+;; (i/view s)
+
+;; (-> p keys)
+;; (-> p :status-lines :schema i/view)
+;; (-> p :status-lines :data i/view)
+;; (-> p :order-attr-defs :data i/view)
+;; (-> p :line-item-attr-defs :data i/view)
+;; (-> p :delivery-attr-defs :data i/view)
+;; (erp/view-all-schemas p)
+;; (def status-lines (-> p :status-lines :data))
+;; (->> (i/$where {:order-num "0004209235" } status-lines) i/view)
+;; (->> (i/$where {:order-num "0004209235" :item-num "000180"} status-lines) i/view)
+;; (->> (i/$where {:order-num order-num :line-item item-num} status-lines))
+
+;; (def orders (i/$group-by [:order-num] (-> d2 :status-lines :data)))
+;; (def items (i/$group-by [:order-num :item-num] (-> d2 :status-lines :data)))
+;; (-> orders keys)
+;; (-> items keys)
+
+;; (def items (i/$group-by [:vbeln-va :posnr-va] stat-lines))
+
+
+
+(defn find-project-line-item
+  [status-lines id]
+  (let [tokens (string/split id #"-")
+        order-num (first tokens)
+        item-num (second tokens)]
+    (->> (i/$where {:order-num order-num :line-item item-num} status-lines))
+    ))
+
+
+;; (i/view (i/dataset schema-col-names (-> d :status-lines :schema)))
+
+;; (i/view (-> d :order-attr-defs :data))
+;; (i/view (-> d :line-item-attr-defs :data))
+;; (keys d)
+;; (-> d :status-lines keys)
+;; (-> d :status-lines :schema)
+;; ;; (def stat-lines (i/dataset (-> d :status-lines :names) (-> d :status-lines :data)))
+;; (def stat-lines (i/dataset status-lines-names (-> d :status-lines :data)))
+;; (i/view stat-lines)
+
+(defn line-item-col-names []
+  (->> (i/$where {:type {:$in #{:project :drawing :line-item}}} status-lines-defs) (i/$ :name)))
+(i/view (i/$
+         (line-item-col-names)
+         (-> p :status-lines :data)))
+
+;; (def items (i/$group-by :vbeln-va stat-lines))
+;; (def items (i/$group-by [:vbeln-va :posnr-va] stat-lines))
+;; (-> items keys)
+;; (-> items first)
+;; (i/view (-> items first second))
+(def status-line-conversions
+  {:project   [:project-id :projid ->int "Project ID"]
+   :drawing   [:drawing-num :bstkd identity "Drawing #"]
+   :order     [:order-num :vbeln-va ->int "Order #"
+               :expected-at :bstdk identity "Expected Date"]
+   :line-item [:item-num :posnr-va ->int "Item #"
+               :matnr :matnr ->int "Mat #"
+               :customer-matnr :kdmat identity "Cust Mat #"
+               :descript :arktx identity "Description"
+               :circuit-id :circ-id identity "Circuit ID"
+               :requested-qty :kwmeng double "Requested Quantity"
+               :total-delivered-qty :tot-gi-qty double "Total Delivered Quantity"    ;; "Total Goods Issue Quantity"
+               :remaining-qty :remaining double "Remaining To Deliver"  ;; still to be delivered
+               :reserved-qty :resv-qty double "Reserved Quantity"
+               :uom :vrkme identity "UOM"
+               :inventory-loc :inv-loc identity "Inventory Loc"
+               :storage-loc :lgort identity "Storage Loc"
+               :service-center :werks identity "Service Center"
+               :trailer-atp :cust-loc-atp double "Trailer ATP"
+               :service-center-atp :main-loc-atp double "Service Center ATP"
+               :schedule-at :edatu identity "Schedule Date"
+               :entered-at :audat identity "Entered Date"
+               :available-at :edatu identity "Available Date"
+               ]
+   :delivery  [:delivery :vbeln-vl identity "Delivery"
+               :released-qty :lfimg double "Released Quantity (Pending)"   ;; means "printed" in the warehouse
+               :delivered-qty :picked double "Delivered Quantity"     ;; picked is the closest to what the customer would call delivered
+               :delivery-item-num :posnr-vl identity "Delivery Item #"]
+   :order-attrs [:order-attr-1 :zz-zvsemm-vbak-attr-1 identity "Order Attr 1"
+                 :order-attr-1 :zz-zvsemm-vbak-attr-2 identity "Order Attr 2"
+                 :order-attr-1 :zz-zvsemm-vbak-attr-3 identity "Order Attr 3"
+                 :order-attr-1 :zz-zvsemm-vbak-attr-4 identity "Order Attr 4"
+                 :order-attr-1 :zz-zvsemm-vbak-attr-5 identity "Order Attr 5"
+                 :order-attr-1 :zz-zvsemm-vbak-attr-6 identity "Order Attr 6"
+                 :order-attr-1 :zz-zvsemm-vbak-attr-7 identity "Order Attr 7"
+                 :order-attr-1 :zz-zvsemm-vbak-attr-8 identity "Order Attr 8"
+                 :order-attr-1 :zz-zvsemm-vbak-attr-9 identity "Order Attr 9"]
+   :item-attrs [:item-attr-1 :zz-zvsemm-vbap-attr-1 identity "Item Attr 1"
+                 :item-attr-2 :zz-zvsemm-vbap-attr-2 identity "Item Attr 2"
+                 :item-attr-3 :zz-zvsemm-vbap-attr-3 identity "Item Attr 3"
+                 :item-attr-4 :zz-zvsemm-vbap-attr-4 identity "Item Attr 4"
+                 :item-attr-5 :zz-zvsemm-vbap-attr-5 identity "Item Attr 5"
+                 :item-attr-6 :zz-zvsemm-vbap-attr-6 identity "Item Attr 6"
+                 :item-attr-7 :zz-zvsemm-vbap-attr-7 identity "Item Attr 7"
+                 :item-attr-8 :zz-zvsemm-vbap-attr-8 identity "Item Attr 8"
+                 :item-attr-9 :zz-zvsemm-vbap-attr-9 identity "Item Attr 9"]
+   :delivery-attrs [:delivery-attr-1 :zz-zvsemm-likp-attr-1 identity "Delivery Attr 1"
+                    :delivery-attr-2 :zz-zvsemm-likp-attr-2 identity "Delivery Attr 2"
+                    :delivery-attr-3 :zz-zvsemm-likp-attr-3 identity "Delivery Attr 3"
+                    :delivery-attr-4 :zz-zvsemm-likp-attr-4 identity "Delivery Attr 4"
+                    :delivery-attr-5 :zz-zvsemm-likp-attr-5 identity "Delivery Attr 5"
+                    :delivery-attr-6 :zz-zvsemm-likp-attr-6 identity "Delivery Attr 6"]
+   })
+
+(defn build-status-lines-defs []
+  (let [n (atom 0)]
+    (->>
+     (map (fn [[k values]] (map #(concat [k] (conj % (swap! n inc))) (partition 4 values))) status-line-conversions)
+     (apply concat)
+     (i/dataset [:type :n :name :sap-name :conversion :title])
+     )))
+;; (i/view (build-status-lines-defs))
+(def status-lines-defs (build-status-lines-defs))
+(def status-lines-map
+  (let [col-names (i/col-names status-lines-defs)
+        data (i/to-vect status-lines-defs)]
+    (reduce #(assoc %1 (nth %2 3) (into {} (map vector col-names %2))) {} (i/to-vect status-lines-defs))
+    ))
+(first status-lines-map)
+(:projid status-lines-map)
+(def status-lines-renames (reduce #(assoc %1 (second %2) (first %2)) {}
+                                  (i/to-vect (i/$ [:name :sap-name] status-lines-defs))))
+;; (i/view (map identity status-lines-renames))
+
+(defn build-names
+  [sap-names rename-hash]
+  (map #(or (get rename-hash %) %) sap-names))
+
+(def project-cube-col-names '(:projid :bstkd :bstdk :audat :vbeln-va :zz-zvsemm-vbak-attr-1 :zz-zvsemm-vbak-attr-2 :zz-zvsemm-vbak-attr-3 :zz-zvsemm-vbak-attr-4 :zz-zvsemm-vbak-attr-5 :zz-zvsemm-vbak-attr-6 :zz-zvsemm-vbak-attr-7 :zz-zvsemm-vbak-attr-8 :zz-zvsemm-vbak-attr-9 :posnr-va :zz-zvsemm-vbap-attr-1 :zz-zvsemm-vbap-attr-2 :zz-zvsemm-vbap-attr-3 :zz-zvsemm-vbap-attr-4 :zz-zvsemm-vbap-attr-5 :zz-zvsemm-vbap-attr-6 :zz-zvsemm-vbap-attr-7 :zz-zvsemm-vbap-attr-8 :zz-zvsemm-vbap-attr-9 :edatu :vbeln-vl :zz-zvsemm-likp-attr-1 :zz-zvsemm-likp-attr-2 :zz-zvsemm-likp-attr-3 :zz-zvsemm-likp-attr-4 :zz-zvsemm-likp-attr-5 :zz-zvsemm-likp-attr-6 :posnr-vl :matnr :kdmat :arktx :circ-id :kwmeng :vrkme :lfimg :inv-loc :picked :tot-gi-qty :remaining :resv-qty :cust-loc-atp :main-loc-atp :lgort :werks :ebeln :ebelp :po-qty :po-item-date :kwmeng-meters :lfimg-meters :picked-meters :tot-gi-qty-meters :remaining-meters :resv-qty-meters :cust-loc-atp-meters :main-loc-atp-meters :po-qty-meters))
+(def status-lines-names (build-names project-cube-col-names status-lines-renames))
+
+;; (i/to-vect status-lines-defs)
+
+
 
 ;; http://incanter.org/docs/data-sorcery-new.pdf
 ;; (i/view (chart/histogram (stats/sample-normal 1000)))
@@ -99,10 +280,26 @@
 ;;   table field relationship view index package procedure function queue trigger type sequence materialized-view synonym database-link directory xml-schema
 
 
+(println "       summit.sap.project checkpoint #1")
 
 (defonce ^:private et-project-fields [:client :id :sold-to :name :title :start-date :end-date :service-center-code :status :last-modifier :modified-on])
 
+(defn extract-incanter
+  [f]
+  (erp/pull-incanter
+   f
+   {:table [:et-status-lines :status-lines] :names status-lines-names :conversions status-lines-defs}
+   {:table [:et-vbak-atts :order-attr-defs] :names attribute-col-names}
+   {:table [:et-vbap-atts :line-item-attr-defs] :names attribute-col-names}
+   {:table [:et-likp-atts :delivery-attr-defs] :names attribute-col-names}
+   ))
+
 ;; cached during call to projects (plural)
+(defonce ^:private cached-raw-data (atom {}))
+(defn cache-raw-data
+  [id f]
+  (swap! cached-raw-data assoc id (extract-incanter f)))
+
 (defonce ^:private cached-projects (atom {}))
 (defn project-name [id]
   (:name (@cached-projects id)))
@@ -175,6 +372,9 @@
 ;; (get-project :prd 3)
 ;; (get-project :qas 1)
 
+
+(println "       summit.sap.project checkpoint #2")
+
 (defn- raw-project-data [f]
   (pull-with-schemas f
                      [:et-status-lines :status-lines]
@@ -199,7 +399,7 @@
 
 (defn- attr-name-conv [key-prefix defs]
   (let [append #(str %2 %1)
-        def-hash (into {} (map (fn [def] [(-> def (nth 2) (str/split #"_") last (append key-prefix) keyword) (nth def 3)]) defs))]
+        def-hash (into {} (map (fn [def] [(-> def (nth 2) (string/split #"_") last (append key-prefix) keyword) (nth def 3)]) defs))]
     def-hash))
 ;; (attr-name-conv "zz-zvsemm-vbap-attr-" (:data (:line-item-attr-defs (raw-project-data y))))
 
@@ -264,6 +464,8 @@
         :id account-id}}}
      }))
 
+(println "       summit.sap.project checkpoint #3")
+
 (defn projects
   ([account-num] (projects :prd account-num))
   ([server account-num]
@@ -286,7 +488,7 @@
 ;;      a single project
 
 (defn transform-attribute-definition [index m]
-  (let [id (-> (:attr-assign m) str/lower-case (str/replace #"_" "-"))]
+  (let [id (-> (:attr-assign m) string/lower-case (string/replace #"_" "-"))]
     [id {:id id
          :seq (inc index)
          :title (:attr-title m)
@@ -415,6 +617,8 @@
                      :circuits {:data circuits}
                      :project {:data {:type :project :id project-id}}
                      :project-line-items {:data line-items}}}))
+
+(println "       summit.sap.project checkpoint #4")
 
 (defn- extract-orders [maps]
   (->> maps
@@ -554,7 +758,7 @@
    (map (fn [[key attr]]
           {:key (:id attr)
            :value (:title attr)
-           :sequence (->int (last (str/split (:id attr) #"-")))}))
+           :sequence (->int (last (string/split (:id attr) #"-")))}))
    (remove #(= "--DELETE--" (:value %)))
    ))
 
@@ -583,6 +787,8 @@
    #(-> % :order :drawing-num)
    #(-> % :order :order-num)
    status-lines))
+
+(println "       summit.sap.project checkpoint #5")
 
 (defn- extract-circuits [status-lines]
   (dissoc
@@ -703,6 +909,7 @@
         status-lines {:headers (project-col-names raw-data)
                       :data (-> raw-data :status-lines :data)}
         maps (pull-project-json-api-maps f)]
+    (cache-raw-data [system project-id] f)
     (cache-status-lines system project-id status-lines)
     (cache-project-json system project-id maps)
     ;; status-lines
@@ -748,6 +955,7 @@
 (defn- normalize-project [maps]
   )
 
+(println "       summit.sap.project checkpoint #6")
 
 
 
@@ -781,8 +989,8 @@
  (def x (project :qas 28))
  (get-project :qas 1)
  (get-project :qas 28)
- (do
-   (get-project :prd 3) nil)
+ (time (do
+         (get-project :prd 3) nil))
  (count (project 3))
  (def x (get-project :prd 3))
  (map #(type %) x)
