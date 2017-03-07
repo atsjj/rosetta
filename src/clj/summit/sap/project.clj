@@ -17,6 +17,7 @@
 
 
 (def ^:dynamic *project-id*  3)
+(defonce ^:private cached-raw-data (atom {}))
 
 ;; incanter helper functions
 (defmulti to-maps
@@ -524,7 +525,6 @@
    ))
 
 ;; cached during call to projects (plural)
-(defonce ^:private cached-raw-data (atom {}))
 (defn cache-raw-data
   [id f]
   (swap! cached-raw-data assoc id (doall (extract-incanter f))))
@@ -1136,7 +1136,6 @@
   "force get project data from sap and cache for spreadsheet and project"
   [system project-id]
   (binding [*project-id* project-id]
-    (println "\n\n\n..................  bound " *project-id* "\n\n")
     (let [f (execute-project-query system project-id)
           raw-data (raw-project-data f)   ;; this is schema + vector data, not maps
           status-lines {:headers (project-col-names raw-data)
