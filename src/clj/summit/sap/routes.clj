@@ -94,6 +94,9 @@
 (defn- get-order [customer server order-id]
   (order/order->json-api (order/order server order-id)))
 
+(defn- get-project-line-item [project-id order-num item-num]
+  (project/project-line-item-as-json-api project-id order-num item-num))
+
 (defn debugged-body [m request debug-map]
   (let [body (or m {:errors ["not found"]})]
     (if true
@@ -282,6 +285,24 @@
                              {:server server :account-num account-num}
                              )
           ))
+
+      (GET "/project-line-items/:id" req
+           (let [customer nil
+                 server   (keyword (get-env-param req :server @default-server))
+                 id       (get-param req :id nil)
+                 _ (println "id:" id ":")
+                 tokens   (clojure.string/split id #"-")
+                 tokens   (map ->int tokens)
+                 _ (println "tokens:" tokens)
+                 _ (prn tokens)
+                 pli    (apply get-project-line-item tokens)
+                 ;; order    (order/order->json-api (order/order server id))
+                 ]
+             (json-api-response pli
+                                req
+                                {:type :project-line-item :server server :customer customer :id id}
+                                )
+             ))
 
       (GET "/orders/:id" req
         (let [customer nil
