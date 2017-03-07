@@ -298,7 +298,7 @@
                  pli    (apply get-project-line-item tokens)
                  ;; order    (order/order->json-api (order/order server id))
                  ]
-             (json-api-response pli
+             (json-api-response {:data pli}
                                 req
                                 {:type :project-line-item :server server :customer customer :id id}
                                 )
