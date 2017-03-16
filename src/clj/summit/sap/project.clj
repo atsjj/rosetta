@@ -677,7 +677,7 @@
   (swap! projs update-in [(->int (second v)) :ship-to-ids] conj (->int (nth v 2))))
 
 (defn- project-link [id]
-  {:self (str "https://www.summit.com/api/projects/" id)})
+  {:self (str "https://www.summit.com/api/v2/projects/" id)})
 
 (defn- project->json-api [account-id proj]
   (let [id (:id proj)]

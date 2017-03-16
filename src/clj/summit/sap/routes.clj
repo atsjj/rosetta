@@ -343,8 +343,8 @@
   (println "getting projects for account 1037657")
   (project/projects :prd 1037657))
 
-(def second 1000)
-(def minute (* 60 second))
+;; (def second 1000)
+(def minute (* 60 60))
 (def quarter-hour (* 15 minute))
 (def hour (* 60 minute))
 (def day (* 24 hour))
