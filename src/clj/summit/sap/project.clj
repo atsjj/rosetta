@@ -1052,7 +1052,7 @@
                       :circuits       {:data
                                        (for [[id _] circuits]
                                          {:type :circuit :id id})}
-                      :releases       {:links {:related (str "/api/v2/projects/" project-id "/")}}
+                      :releases       {:links {:related (str "/api/v2/projects/" project-id "/releases")}}
                       :account        {:data
                                        {:type "account" :id (project-account-num project-id)}}}}
      :included
