@@ -338,8 +338,29 @@
      :tables (field-definitions (.getTableParameterList f))
      }))
 
+(defn import-field-names
+  [func]
+  (let [f (:function func)]
+    (->>
+     (.getImportParameterList f)
+     field-definitions
+     (map first))))
 
+(defn all-field-names
+  [func]
+  (let [f (:function func)]
+    (concat
+     (field-names (.getImportParameterList f))
+     (field-names (.getExportParameterList f))
+     (field-names (.getTableParameterList f))
+     )))
 
+(defn view-schema-for-var
+  [func var-name]
+  (println var-name)
+  (let [incanters (pull-incanter func {:table var-name})]
+    (println incanters)
+    (-> incanters var-name :schema i/view)))
 
 
 (defn execute [f]
@@ -437,8 +458,26 @@
 
 
 
+
+;; (defn extract-incanter
+;;   [f]
+;;   (erp/pull-incanter
+;;    f
+;;    {:table [:et-status-lines :status-lines] :names status-lines-names :conversions status-lines-defs}
+;;    {:table [:et-vbak-atts :order-attr-defs] :names attribute-col-names}
+;;    {:table [:et-vbap-atts :line-item-attr-defs] :names attribute-col-names}
+;;    {:table [:et-likp-atts :delivery-attr-defs] :names attribute-col-names}
+;;    ))
+
 (examples
 
+
+ (def qas-order-create (find-function :qas :bapi_salesorder_createfromdat2))
+ (all-field-names qas-order-create)
+ (def qas-order (pull-incanter qas-order-create {:table :order-partners}))
+ (-> qas-order :order-partners keys)
+ (-> qas-order :order-partners :schema i/view)
+ (view-schema-for-var qas-order-create :order-partners)
 
 
 (def dev-bapi-avail (find-function :dev :bapi-material-availability))

@@ -16,6 +16,7 @@
 
             [summit.utils.core :as utils]
             [summit.sap.periodic :as periodic]
+            [summit.ecommerce.product-info :as product-info]
             ))
 
 ;; (def default-server (atom :qas))
@@ -124,6 +125,12 @@
 (defroutes sap-routes-v2
   (context "/api" []
     (context "/:version-num" []
+
+             (GET "/product-info/:matnr" [matnr]
+                  (let [matnr (->int matnr)]
+                    {:status  200
+                     :headers {"Content-Type" "text/json"}
+                     :body    (product-info/product-info matnr)}))
 
       (GET "/describe/:func-name" req
         (let [func-name (keyword (get-in req [:params :func-name]))]

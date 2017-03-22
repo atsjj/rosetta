@@ -1,12 +1,12 @@
 (ns summit.sap.price
-  (:require [summit.utils.core :as utils]
+  (:require [incanter.core :as incant]
+            [incanter.datasets :as d]
+            [mishmash.meta :as m]
+
+            [summit.utils.core :as utils]
             [summit.sap.types :refer :all]
             [summit.sap.core :refer :all]
             [summit.sap.conversions :as conv]
-
-            [mishmash.meta :as m]
-            [incanter.core :as incant]
-            [incanter.datasets :as d]
            ))
 
 

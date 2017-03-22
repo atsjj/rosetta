@@ -32,6 +32,9 @@
 
                  [incanter "1.5.7"]
 
+                 [mysql/mysql-connector-java "5.1.6"]
+                 [org.clojure/java.jdbc "0.3.7"]
+
                  [riemann-clojure-client "0.4.4"]
                  [com.murphydye/mishmash "0.1.1-SNAPSHOT"]
                  ]
